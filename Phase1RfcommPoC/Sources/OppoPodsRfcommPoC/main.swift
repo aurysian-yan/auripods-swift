@@ -10,7 +10,7 @@ private let closeTimeout: TimeInterval = 3
 private let retryDelay: TimeInterval = 2
 private let probeHoldDelay: TimeInterval = 2
 private let probeChannelDelay: TimeInterval = 1
-private let batteryQuerySchedule: [TimeInterval] = [0, 5, 10]
+private let responseWait: TimeInterval = 2
 
 enum PoCError: Error, CustomStringConvertible {
     case invalidArgument(String)
@@ -51,6 +51,7 @@ struct Options {
 
 struct CommandPacket {
     let label: String
+    let sources: [String]
     let raw: [UInt8]
 }
 
@@ -68,15 +69,74 @@ struct SafeHandshakeSummary {
     let batteryResponses: [BatterySnapshot]
 }
 
+struct Phase3BResult {
+    let channelConnected: Bool
+    let handshakePassed: Bool
+    let ancWritePassed: Bool
+    let batteryResponses: [BatterySnapshot]
+}
+
 enum SafeHandshakePackets {
     static let enableStatusPush = CommandPacket(
         label: "Enable Status Push",
+        sources: [
+            "Packets.kt lines 211-214"
+        ],
         raw: [0xAA, 0x09, 0x00, 0x00, 0x05, 0x02, 0x3A, 0x02, 0x00, 0x01, 0x02]
     )
 
     static let batteryQuery = CommandPacket(
         label: "Battery Query",
+        sources: [
+            "Packets.kt lines 206-209",
+            "RfcommController.kt lines 981-984",
+            "RfcommController.kt lines 996-1002"
+        ],
         raw: [0xAA, 0x07, 0x00, 0x00, 0x06, 0x01, 0xF0, 0x00, 0x00]
+    )
+}
+
+enum Phase3BPackets {
+    static let queryANC = CommandPacket(
+        label: "Query ANC",
+        sources: [
+            "Packets.kt lines 12-28",
+            "Packets.kt lines 216-219",
+            "RfcommController.kt lines 996-1002"
+        ],
+        raw: buildPacket(command: 0x010C, payload: [0x01, 0x01])
+    )
+
+    static let queryANCAfterTransparency = CommandPacket(
+        label: "Query ANC After Transparency",
+        sources: queryANC.sources,
+        raw: queryANC.raw
+    )
+
+    static let queryANCAfterOff = CommandPacket(
+        label: "Query ANC After Off",
+        sources: queryANC.sources,
+        raw: queryANC.raw
+    )
+
+    static let setTransparency = CommandPacket(
+        label: "Set Transparency",
+        sources: [
+            "Packets.kt lines 12-28",
+            "Packets.kt lines 177-180",
+            "RfcommController.kt lines 959-975"
+        ],
+        raw: buildPacket(command: 0x0404, payload: [0x01, 0x01, 0x04])
+    )
+
+    static let setANCOff = CommandPacket(
+        label: "Set ANC Off",
+        sources: [
+            "Packets.kt lines 12-28",
+            "Packets.kt lines 196-199",
+            "RfcommController.kt lines 959-975"
+        ],
+        raw: buildPacket(command: 0x0404, payload: [0x01, 0x01, 0x01])
     )
 }
 
@@ -290,9 +350,13 @@ func openChannel(
     return channel
 }
 
-func performReadOnlyStep(_ packet: CommandPacket, channel: IOBluetoothRFCOMMChannel) throws {
+func sendCommand(_ packet: CommandPacket, channel: IOBluetoothRFCOMMChannel) throws {
     print("")
     print("SEND \(packet.label):")
+    print("SOURCE:")
+    for source in packet.sources {
+        print(source)
+    }
     print(packet.raw.hexString)
     try write(packet.raw, to: channel)
 }
@@ -426,15 +490,15 @@ func probeCandidateChannels(device: IOBluetoothDevice) {
     }
 }
 
-func runSafeConnectMode(device: IOBluetoothDevice) throws -> SafeHandshakeSummary {
+func runPhase3B(device: IOBluetoothDevice) throws -> Phase3BResult {
     guard let connection = connectControlChannel(device: device) else {
         print("")
         print("RESULT:")
         print("FAILED")
-        return SafeHandshakeSummary(
+        return Phase3BResult(
             channelConnected: false,
             handshakePassed: false,
-            batteryResponseCount: 0,
+            ancWritePassed: false,
             batteryResponses: []
         )
     }
@@ -443,64 +507,86 @@ func runSafeConnectMode(device: IOBluetoothDevice) throws -> SafeHandshakeSummar
         close(channel: connection.channel, listener: connection.listener)
     }
 
-    try performReadOnlyStep(SafeHandshakePackets.enableStatusPush, channel: connection.channel)
-    Thread.sleep(forTimeInterval: 0.05)
-
-    let queryStart = Date()
-    var batteryResponses: [BatterySnapshot] = []
-    var batteryResponseCount = 0
-
-    for (index, scheduledDelay) in batteryQuerySchedule.enumerated() {
-        let targetDate = queryStart.addingTimeInterval(scheduledDelay)
-        while Date() < targetDate {
-            RunLoop.current.run(mode: .default, before: min(targetDate, Date(timeIntervalSinceNow: 0.05)))
-        }
-
-        let queryNumber = index + 1
+    let handshake = try performSafeHandshake(connection: connection)
+    guard handshake.passed else {
         print("")
-        print("BATTERY QUERY #\(queryNumber)")
-        print("SEND:")
-        print(SafeHandshakePackets.batteryQuery.raw.hexString)
-
-        let baseline = connection.listener.responseCount
-        try write(SafeHandshakePackets.batteryQuery.raw, to: connection.channel)
-        let responses = waitForResponses(listener: connection.listener, baseline: baseline, timeout: readTimeout)
-        let decodedResponses = responses.compactMap { batterySnapshot(from: $0) }
-
-        if decodedResponses.isEmpty {
-            print("")
-            print("BATTERY RAW:")
-            print("none")
-            print("")
-            print("BATTERY DECODE:")
-            print("Left: Unknown / Not present / Not reported")
-            print("Right: Unknown / Not present / Not reported")
-            print("Case: Unknown / Not present / Not reported")
-        } else {
-            batteryResponseCount += 1
-            for snapshot in decodedResponses {
-                printBatterySnapshot(snapshot)
-                batteryResponses.append(snapshot)
-            }
-        }
+        print("RESULT:")
+        print("ANC WRITE TEST FAILED")
+        return Phase3BResult(
+            channelConnected: true,
+            handshakePassed: false,
+            ancWritePassed: false,
+            batteryResponses: handshake.batteryResponses
+        )
     }
 
-    let passed = batteryResponseCount > 0
+    var ancCandidateCount = 0
+    try sendANCStep(Phase3BPackets.queryANC, connection: connection, wait: responseWait, candidateCount: &ancCandidateCount)
+    try sendANCStep(Phase3BPackets.setTransparency, connection: connection, wait: responseWait, candidateCount: &ancCandidateCount)
+    try sendANCStep(Phase3BPackets.queryANCAfterTransparency, connection: connection, wait: responseWait, candidateCount: &ancCandidateCount)
+    try sendANCStep(Phase3BPackets.setANCOff, connection: connection, wait: responseWait, candidateCount: &ancCandidateCount)
+    try sendANCStep(Phase3BPackets.queryANCAfterOff, connection: connection, wait: responseWait, candidateCount: &ancCandidateCount)
+
+    let passed = ancCandidateCount > 0
 
     print("")
     print("RESULT:")
     if passed {
-        print("SAFE HANDSHAKE PASSED")
+        print("ANC WRITE TEST PASSED")
     } else {
-        print("FAILED")
+        print("ANC WRITE TEST FAILED")
     }
 
-    return SafeHandshakeSummary(
+    return Phase3BResult(
         channelConnected: true,
-        handshakePassed: passed,
-        batteryResponseCount: batteryResponseCount,
-        batteryResponses: batteryResponses
+        handshakePassed: true,
+        ancWritePassed: passed,
+        batteryResponses: handshake.batteryResponses
     )
+}
+
+func performSafeHandshake(connection: SafeRfcommConnection) throws -> (passed: Bool, batteryResponses: [BatterySnapshot]) {
+    try sendCommand(SafeHandshakePackets.enableStatusPush, channel: connection.channel)
+    Thread.sleep(forTimeInterval: 0.05)
+
+    let baseline = connection.listener.responseCount
+    try sendCommand(SafeHandshakePackets.batteryQuery, channel: connection.channel)
+    let responses = waitForResponses(listener: connection.listener, baseline: baseline, timeout: readTimeout)
+    let batteryResponses = responses.compactMap { batterySnapshot(from: $0) }
+
+    if batteryResponses.isEmpty {
+        print("")
+        print("RESULT:")
+        print("FAILED")
+        return (false, [])
+    }
+
+    for snapshot in batteryResponses {
+        printBatterySnapshot(snapshot)
+    }
+
+    print("")
+    print("SAFE HANDSHAKE PASSED")
+    return (true, batteryResponses)
+}
+
+func sendANCStep(
+    _ packet: CommandPacket,
+    connection: SafeRfcommConnection,
+    wait: TimeInterval,
+    candidateCount: inout Int
+) throws {
+    let baseline = connection.listener.responseCount
+    try sendCommand(packet, channel: connection.channel)
+    let responses = waitForResponses(listener: connection.listener, baseline: baseline, timeout: wait)
+    let candidates = responses.filter { isANCCandidateFrame($0) }
+    candidateCount += candidates.count
+
+    for candidate in candidates {
+        print("")
+        print("ANC CANDIDATE FRAME:")
+        print(candidate.hexString)
+    }
 }
 
 func batterySnapshot(from data: Data) -> BatterySnapshot? {
@@ -523,6 +609,23 @@ func batterySnapshot(from data: Data) -> BatterySnapshot? {
     }
 
     return nil
+}
+
+func isANCCandidateFrame(_ data: Data) -> Bool {
+    let bytes = Array(data)
+    guard bytes.count >= 6, bytes.contains(0xAA) else { return false }
+
+    for index in 0..<(bytes.count - 1) {
+        if bytes[index] == 0x0C && bytes[index + 1] == 0x81 {
+            return true
+        }
+
+        if bytes[index] == 0x04 && bytes[index + 1] == 0x02 {
+            return true
+        }
+    }
+
+    return false
 }
 
 func parseBatteryFields(in bytes: [UInt8], after startIndex: Int) -> (left: UInt8, right: UInt8, batteryCase: UInt8)? {
@@ -569,20 +672,21 @@ func batteryText(_ value: UInt8?) -> String {
     return "\(value)%"
 }
 
-func printSummary(_ summary: SafeHandshakeSummary) {
-    let latestBattery = summary.batteryResponses.last
+func printSummary(_ result: Phase3BResult) {
+    let latestBattery = result.batteryResponses.last
 
     print("")
     print("SUMMARY:")
-    print("Channel 15 connect: \(summary.channelConnected ? "success" : "failed")")
-    print("Safe handshake: \(summary.handshakePassed ? "passed" : "failed")")
-    print("Battery responses: \(summary.batteryResponseCount) / \(batteryQuerySchedule.count)")
+    print("Channel 15 connect: \(result.channelConnected ? "success" : "failed")")
+    print("Safe handshake: \(result.handshakePassed ? "passed" : "failed")")
+    print("ANC write test: \(result.ancWritePassed ? "passed" : "failed")")
+    print("Battery responses: \(result.batteryResponses.isEmpty ? 0 : 1) / 1")
     print("Decoded battery:")
     print("* Left: \(batteryText(latestBattery?.left))")
     print("* Right: \(batteryText(latestBattery?.right))")
     print("* Case: \(batteryText(latestBattery?.batteryCase))")
 
-    if hasPossibleFieldMismatch(summary.batteryResponses) {
+    if hasPossibleFieldMismatch(result.batteryResponses) {
         print("")
         print("POSSIBLE FIELD MISMATCH")
     }
@@ -595,6 +699,22 @@ func hasPossibleFieldMismatch(_ responses: [BatterySnapshot]) -> Bool {
             return value > 100
         }
     }
+}
+
+func buildPacket(command: UInt16, sequence: UInt8 = 0xF0, payload: [UInt8] = []) -> [UInt8] {
+    let payloadLength = UInt16(payload.count)
+    let totalLength = UInt8(7 + payload.count)
+    return [
+        0xAA,
+        totalLength,
+        0x00,
+        0x00,
+        UInt8(command & 0x00FF),
+        UInt8((command >> 8) & 0x00FF),
+        sequence,
+        UInt8(payloadLength & 0x00FF),
+        UInt8((payloadLength >> 8) & 0x00FF)
+    ] + payload
 }
 
 func run() throws {
@@ -611,8 +731,8 @@ func run() throws {
     print("Target Device: \(deviceName)")
     print("Target Address: \(device.addressString ?? "(no address)")")
 
-    let summary = try runSafeConnectMode(device: device)
-    printSummary(summary)
+    let result = try runPhase3B(device: device)
+    printSummary(result)
 }
 
 func formatIOReturn(_ value: IOReturn) -> String {
