@@ -77,7 +77,20 @@ final class DeviceImageProvider {
     }
 
     func imageSet(for snapshot: BluetoothDeviceSnapshot?) -> DeviceImageSet {
-        imageSet(productId: nil, colorId: nil, modelName: snapshot?.name)
+        let imageSet = imageSet(productId: nil, colorId: nil, modelName: snapshot?.name)
+
+        guard let snapshot,
+              let selectedImageName = selectedImageName(for: snapshot),
+              availableImageName(selectedImageName) != nil else {
+            return imageSet
+        }
+
+        return DeviceImageSet(
+            primary: selectedImageName,
+            caseImage: selectedImageName,
+            leftBud: imageSet.leftBud,
+            rightBud: imageSet.rightBud
+        )
     }
 
     func imageSet(productId: String? = nil, colorId: String? = nil, modelName: String? = nil) -> DeviceImageSet {
@@ -137,6 +150,10 @@ final class DeviceImageProvider {
         )
     }
 
+    func availableImageNames(for snapshot: BluetoothDeviceSnapshot) -> [String] {
+        availableImageNames(productId: nil, modelName: snapshot.name)
+    }
+
     func availableImageNames(productId: String? = nil, modelName: String? = nil) -> [String] {
         let normalizedProductId = normalized(productId)
         let matchingDescriptors = descriptors.filter { descriptor in
@@ -158,6 +175,10 @@ final class DeviceImageProvider {
 
     func selectedImageName(for state: EarbudsState) -> String? {
         selectedImageName(for: selectionKey(for: state), allowedImageNames: availableImageNames(for: state))
+    }
+
+    func selectedImageName(for snapshot: BluetoothDeviceSnapshot) -> String? {
+        selectedImageName(for: selectionKey(for: snapshot), allowedImageNames: availableImageNames(for: snapshot))
     }
 
     func selectedImageName(for deviceId: String, allowedImageNames: [String]) -> String? {
@@ -191,6 +212,10 @@ final class DeviceImageProvider {
         }
 
         return normalized(state.currentDevice?.name ?? state.deviceName) ?? "default"
+    }
+
+    func selectionKey(for snapshot: BluetoothDeviceSnapshot) -> String {
+        normalized(snapshot.address) ?? normalized(snapshot.name) ?? "default"
     }
 
     func displayTitle(for imageName: String) -> String {

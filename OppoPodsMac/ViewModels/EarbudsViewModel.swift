@@ -107,7 +107,8 @@ final class EarbudsViewModel: ObservableObject {
             state.battery = battery
             ConnectionPopupWindowController.shared.showConnectedIfNeeded(
                 deviceName: deviceName,
-                batteryLevel: battery.averageLevel
+                batteryLevel: battery.averageLevel,
+                imageName: DeviceImageProvider.shared.primaryImageName(for: state)
             )
             state.connectionStatus = .connected
             state.appConnected = true
@@ -203,7 +204,8 @@ final class EarbudsViewModel: ObservableObject {
         appendDebugEvent("system bluetooth connected \(snapshot.name)")
         ConnectionPopupWindowController.shared.showConnected(
             deviceName: snapshot.name,
-            batteryLevel: nil
+            batteryLevel: nil,
+            imageName: DeviceImageProvider.shared.primaryImageName(for: snapshot)
         )
 
         await connect(isAutomatic: true, snapshot: snapshot)
@@ -246,7 +248,8 @@ final class EarbudsViewModel: ObservableObject {
             state.battery = battery
             ConnectionPopupWindowController.shared.showConnectedIfNeeded(
                 deviceName: deviceName,
-                batteryLevel: battery.averageLevel
+                batteryLevel: battery.averageLevel,
+                imageName: DeviceImageProvider.shared.primaryImageName(for: state)
             )
             state.connectionStatus = .connected
             state.systemBluetoothConnected = true
