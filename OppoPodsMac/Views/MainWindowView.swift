@@ -737,6 +737,11 @@ private struct MainWindowConfigurator: NSViewRepresentable {
     private func configureWindow(for view: NSView, coordinator: Coordinator) {
         guard let window = view.window else { return }
 
+        // Keep the Dock tile using the bundle-provided Icon Composer app icon.
+        // If any AppKit/SwiftUI lifecycle code has temporarily assigned an NSImage
+        // to the app icon, resetting this to nil restores the original bundle icon.
+        NSApp.applicationIconImage = nil
+
         window.delegate = coordinator
         window.title = title
         window.titleVisibility = title.isEmpty ? .hidden : .visible
