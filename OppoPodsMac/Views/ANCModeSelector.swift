@@ -7,18 +7,27 @@ enum ANCModeSelectorSize {
     var iconSize: CGFloat {
         switch self {
         case .compact:
-            return 22
-        case .regular:
             return 26
+        case .regular:
+            return 32
+        }
+    }
+
+    var iconFrameSize: CGFloat {
+        switch self {
+        case .compact:
+            return 28
+        case .regular:
+            return 32
         }
     }
 
     var controlHeight: CGFloat {
         switch self {
         case .compact:
-            return 52
+            return 48
         case .regular:
-            return 60
+            return 52
         }
     }
 
@@ -46,6 +55,7 @@ struct ANCModeSelector: View {
     var size: ANCModeSelectorSize = .compact
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Namespace private var selectionNamespace
+    @State private var symbolBounceTrigger = 0
 
     private var isControlDisabled: Bool {
         viewModel.isBusy || viewModel.isWritingANC
@@ -62,9 +72,9 @@ struct ANCModeSelector: View {
                         .fill(Color.black.opacity(0.18))
 
                     HStack(spacing: 0) {
-                        modeButton(.off, systemImage: "person.crop.circle")
-                        modeButton(.transparency, systemImage: "person.crop.circle.dashed")
-                        modeButton(.noiseCancellation, systemImage: "person.crop.circle.badge.minus")
+                        modeButton(.off, imageName: "oppobuds.anc.fill")
+                        modeButton(.transparency, imageName: "oppobuds.transparency.fill")
+                        modeButton(.noiseCancellation, imageName: "oppobuds.anc.on.fill")
                     }
                     .padding(4)
                 }
@@ -80,9 +90,13 @@ struct ANCModeSelector: View {
             }
         }
         .disabled(isControlDisabled)
+        .onChange(of: viewModel.ancMode) { _, _ in
+            guard !reduceMotion else { return }
+            symbolBounceTrigger += 1
+        }
     }
 
-    private func modeButton(_ mode: ANCMode, systemImage: String) -> some View {
+    private func modeButton(_ mode: ANCMode, imageName: String) -> some View {
         let isSelected = viewModel.ancMode == mode
 
         return Button {
@@ -99,10 +113,7 @@ struct ANCModeSelector: View {
                         .matchedGeometryEffect(id: "selectedANCModeCapsule", in: selectionNamespace)
                 }
 
-                Image(systemName: systemImage)
-                    .font(.system(size: size.iconSize, weight: .semibold))
-                    .foregroundStyle(isSelected ? .primary : .secondary)
-                    .scaleEffect(isSelected && !reduceMotion ? 1.04 : 1)
+                modeIcon(mode, imageName: imageName, isSelected: isSelected)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .contentShape(Capsule())
@@ -112,14 +123,35 @@ struct ANCModeSelector: View {
         .animation(reduceMotion ? nil : .snappy(duration: 0.28), value: viewModel.ancMode)
     }
 
+    @ViewBuilder
+    private func modeIcon(_ mode: ANCMode, imageName: String, isSelected: Bool) -> some View {
+        let icon = Image(imageName)
+            .symbolRenderingMode(mode == .off ? .palette : .hierarchical)
+            .imageScale(.small)
+            .font(.system(size: size.iconSize, weight: .regular))
+            .foregroundStyle(
+                isSelected ? AnyShapeStyle(.primary) : AnyShapeStyle(.secondary),
+                isSelected ? AnyShapeStyle(.primary.opacity(0.45)) : AnyShapeStyle(.secondary.opacity(0.32))
+            )
+            .frame(width: size.iconFrameSize, height: size.iconFrameSize, alignment: .center)
+            .scaleEffect(isSelected && !reduceMotion ? 1.04 : 1)
+
+        if isSelected && !reduceMotion {
+            icon.symbolEffect(.bounce, value: symbolBounceTrigger)
+        } else {
+            icon
+        }
+    }
+
     private func modeTitle(_ mode: ANCMode) -> some View {
         let isSelected = viewModel.ancMode == mode
 
         return Text(mode.localizedTitle)
-            .font(size.labelFont)
+            .font(.system(size: 12))
             .fontWeight(isSelected ? .semibold : .regular)
             .foregroundStyle(isSelected ? .primary : .secondary)
             .frame(maxWidth: .infinity)
+            .padding(.horizontal, -4)
     }
 
     private func handleSelection(_ mode: ANCMode) {

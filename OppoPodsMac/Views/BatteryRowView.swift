@@ -10,9 +10,15 @@ struct BatteryRowView<Title: View>: View {
     }
 
     var body: some View {
-        HStack {
+        HStack(spacing: 4) {
             title
+
             Text(value)
+                .font(.system(size: 13, weight: .medium))
+                .monospacedDigit()
+                .contentTransition(.numericText())
+                .animation(.easeInOut(duration: 0.25), value: value)
         }
+        .padding(.trailing, 4)
     }
 }

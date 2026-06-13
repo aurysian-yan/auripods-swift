@@ -14,12 +14,17 @@ struct OppoPodsMacApp: App {
         }
         .defaultSize(width: 720, height: 520)
 
-        MenuBarExtra("OppoPodsMac", systemImage: "earbuds") {
+        MenuBarExtra {
             MenuBarContentView()
                 .environmentObject(viewModel)
                 .onAppear {
                     viewModel.start()
                 }
+        } label: {
+            Image("oppobuds.bud.large")
+                .font(.system(size: 24, weight: .medium))
+                .symbolRenderingMode(.monochrome)
+                .accessibilityLabel("OppoPodsMac")
         }
         .menuBarExtraStyle(.window)
     }

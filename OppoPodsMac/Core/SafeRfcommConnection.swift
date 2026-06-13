@@ -42,23 +42,32 @@ final class SafeRfcommDelegate: NSObject {
     var channel: IOBluetoothRFCOMMChannel?
     private(set) var openStatus: IOReturn?
     private(set) var didClose = false
-    private(set) var responses: [Data] = []
+    private var responseStorage: [Data] = []
+    private let responseLock = NSLock()
     var onEvent: ((String) -> Void)?
 
     var responseCount: Int {
-        responses.count
+        responseLock.lock()
+        defer { responseLock.unlock() }
+        return responseStorage.count
     }
 
     func responsesSince(_ index: Int) -> [Data] {
-        guard index < responses.count else { return [] }
-        return Array(responses[index...])
+        responseLock.lock()
+        defer { responseLock.unlock() }
+
+        let startIndex = max(0, index)
+        guard startIndex < responseStorage.count else { return [] }
+        return Array(responseStorage[startIndex...])
     }
 
     func resetOpenState() {
         channel = nil
         openStatus = nil
         didClose = false
-        responses.removeAll()
+        responseLock.lock()
+        responseStorage.removeAll()
+        responseLock.unlock()
     }
 
     func resetAfterFailure() {
@@ -84,7 +93,9 @@ final class SafeRfcommDelegate: NSObject {
     ) {
         guard let dataPointer, dataLength > 0 else { return }
         let data = Data(bytes: dataPointer, count: dataLength)
-        responses.append(data)
+        responseLock.lock()
+        responseStorage.append(data)
+        responseLock.unlock()
         onEvent?("recv frame \(data.hexString)")
     }
 
