@@ -21,6 +21,7 @@ final class DeviceImageProvider {
     static let shared = DeviceImageProvider()
 
     private let descriptors: [DeviceImageDescriptor]
+    private let selectedImageNameKeyPrefix = "selectedDeviceImageName."
     private let defaultImageSet = DeviceImageSet(
         primary: "oppo_enco_air4_pro_white",
         caseImage: "oppo_enco_air4_pro_black",
@@ -56,10 +57,22 @@ final class DeviceImageProvider {
     }
 
     func imageSet(for state: EarbudsState) -> DeviceImageSet {
-        imageSet(
+        let imageSet = imageSet(
             productId: nil,
             colorId: nil,
             modelName: state.currentDevice?.name ?? state.deviceName
+        )
+
+        guard let selectedImageName = selectedImageName(for: state),
+              availableImageName(selectedImageName) != nil else {
+            return imageSet
+        }
+
+        return DeviceImageSet(
+            primary: selectedImageName,
+            caseImage: selectedImageName,
+            leftBud: imageSet.leftBud,
+            rightBud: imageSet.rightBud
         )
     }
 
@@ -117,6 +130,84 @@ final class DeviceImageProvider {
         imageSet(productId: productId, colorId: colorId, modelName: modelName).primary
     }
 
+    func availableImageNames(for state: EarbudsState) -> [String] {
+        availableImageNames(
+            productId: nil,
+            modelName: state.currentDevice?.name ?? state.deviceName
+        )
+    }
+
+    func availableImageNames(productId: String? = nil, modelName: String? = nil) -> [String] {
+        let normalizedProductId = normalized(productId)
+        let matchingDescriptors = descriptors.filter { descriptor in
+            if let normalizedProductId {
+                return normalized(descriptor.productId) == normalizedProductId
+            }
+
+            return matches(modelName: modelName, descriptor: descriptor)
+        }
+
+        let imageNames = matchingDescriptors.compactMap { availableImageName($0.imageSet.primary) }
+
+        if imageNames.isEmpty, let defaultImageName = availableImageName(defaultImageSet.primary) {
+            return [defaultImageName]
+        }
+
+        return unique(imageNames)
+    }
+
+    func selectedImageName(for state: EarbudsState) -> String? {
+        selectedImageName(for: selectionKey(for: state), allowedImageNames: availableImageNames(for: state))
+    }
+
+    func selectedImageName(for deviceId: String, allowedImageNames: [String]) -> String? {
+        guard let imageName = UserDefaults.standard.string(forKey: selectedImageNameKey(for: deviceId)),
+              allowedImageNames.contains(imageName),
+              availableImageName(imageName) != nil else {
+            return nil
+        }
+
+        return imageName
+    }
+
+    func setSelectedImageName(_ imageName: String?, for state: EarbudsState) {
+        setSelectedImageName(imageName, for: selectionKey(for: state))
+    }
+
+    func setSelectedImageName(_ imageName: String?, for deviceId: String) {
+        let key = selectedImageNameKey(for: deviceId)
+
+        guard let imageName else {
+            UserDefaults.standard.removeObject(forKey: key)
+            return
+        }
+
+        UserDefaults.standard.set(imageName, forKey: key)
+    }
+
+    func selectionKey(for state: EarbudsState) -> String {
+        if let deviceAddress = normalized(state.currentDevice?.address ?? state.deviceAddress) {
+            return deviceAddress
+        }
+
+        return normalized(state.currentDevice?.name ?? state.deviceName) ?? "default"
+    }
+
+    func displayTitle(for imageName: String) -> String {
+        if let descriptor = descriptors.first(where: { $0.imageSet.primary == imageName }) {
+            switch descriptor.colorId {
+            case "white":
+                return "白色"
+            case "black":
+                return "黑色"
+            default:
+                return descriptor.colorId ?? imageName
+            }
+        }
+
+        return imageName
+    }
+
     private func validated(_ imageSet: DeviceImageSet) -> DeviceImageSet {
         DeviceImageSet(
             primary: availableImageName(imageSet.primary),
@@ -132,6 +223,18 @@ final class DeviceImageProvider {
         }
 
         return imageName
+    }
+
+    private func selectedImageNameKey(for deviceId: String) -> String {
+        selectedImageNameKeyPrefix + deviceId
+    }
+
+    private func unique(_ imageNames: [String]) -> [String] {
+        var seen = Set<String>()
+
+        return imageNames.filter { imageName in
+            seen.insert(imageName).inserted
+        }
     }
 
     private func matches(modelName: String?, descriptor: DeviceImageDescriptor) -> Bool {

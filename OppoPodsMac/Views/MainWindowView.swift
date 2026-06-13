@@ -1,80 +1,625 @@
+import AppKit
 import SwiftUI
+
+private enum MainWindowPage: Hashable {
+    case home
+    case device(String)
+    case logs
+    case settings
+}
 
 struct MainWindowView: View {
     @EnvironmentObject private var viewModel: EarbudsViewModel
+    @State private var currentPage: MainWindowPage = .home
+    @State private var columnVisibility: NavigationSplitViewVisibility = .all
 
     var body: some View {
-        VStack(spacing: 0) {
-            StatusHeaderView(viewModel: viewModel)
-                .padding()
+        NavigationSplitView(columnVisibility: $columnVisibility) {
+            DevicesSidebarView(
+                viewModel: viewModel,
+                currentPage: $currentPage,
+                errorLogCount: errorLogCount
+            )
+                .navigationSplitViewColumnWidth(min: 240, ideal: 260, max: 300)
+        } detail: {
+            VStack(spacing: 0) {
+                pageContent
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .padding(.top, 18)
+            }
+            .background(.thinMaterial)
+        }
+        .background(.thinMaterial)
+        .containerBackground(.thinMaterial, for: .window)
+        .ignoresSafeArea(.container, edges: .top)
+        .mainWindowTitleBarAppearance()
+        .frame(minWidth: 768, idealWidth: 768, maxWidth: 768, minHeight: 720, idealHeight: 720, maxHeight: 1440)
+        .navigationTitle(currentPageTitle)
+        .onAppear {
+            selectCurrentDeviceIfNeeded()
+        }
+        .onChange(of: currentDevice.id) { _, _ in
+            updateDevicePageIfNeeded()
+        }
+    }
 
-            Divider()
+    private var currentDevice: PairedDevice {
+        PairedDevice(state: viewModel.state)
+    }
 
-            HStack(alignment: .top, spacing: 20) {
-                VStack(alignment: .leading, spacing: 18) {
-                    batterySection
+    private var currentPageTitle: String {
+        switch currentPage {
+        case .home:
+            return ""
+        case .device(let deviceID):
+            return deviceID == currentDevice.id ? currentDevice.displayName : ""
+        case .logs:
+            return "日志"
+        case .settings:
+            return "设置"
+        }
+    }
 
+    private var errorLogCount: Int {
+        var count = 0
+
+        if viewModel.state.lastError != nil {
+            count += 1
+        }
+
+        count += viewModel.debugEvents.filter { event in
+            let lowercased = event.lowercased()
+
+            return lowercased.contains("error") ||
+                lowercased.contains("failed") ||
+                lowercased.contains("失败") ||
+                lowercased.contains("错误")
+        }.count
+
+        return count
+    }
+
+    @ViewBuilder
+    private var pageContent: some View {
+        switch currentPage {
+        case .home, .device:
+            HomePageView(viewModel: viewModel)
+        case .logs:
+            LogsPageView(viewModel: viewModel)
+        case .settings:
+            SettingsPageView(viewModel: viewModel)
+        }
+    }
+
+    private func selectCurrentDeviceIfNeeded() {
+        if currentPage == .home {
+            currentPage = .device(currentDevice.id)
+        }
+    }
+
+    private func updateDevicePageIfNeeded() {
+        if case .device = currentPage {
+            currentPage = .device(currentDevice.id)
+        }
+    }
+}
+
+struct HomePageView: View {
+    @ObservedObject var viewModel: EarbudsViewModel
+
+    var body: some View {
+        ScrollView(showsIndicators: false) {
+            VStack(spacing: 16) {
+                MainWindowCard {
+                    DeviceOverviewContent(viewModel: viewModel)
+                }
+
+                MainWindowCard {
                     ANCModeSelector(viewModel: viewModel, size: .regular)
                         .disabled(viewModel.state.connectionStatus != .connected)
-
-                    actionSection
-
-                    if let lastError = viewModel.state.lastError {
-                        Text(lastError)
-                            .font(.caption)
-                            .foregroundStyle(.red)
-                    }
-
-                    Spacer(minLength: 0)
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
 
-                DebugLogPanelView(events: viewModel.debugEvents)
+                MainWindowCard {
+                    connectionActions
+                }
             }
-            .padding()
+            .padding(.horizontal, 20)
+            .padding(.bottom, 24)
         }
-        .frame(minWidth: 720, minHeight: 520)
-        .background(Color(nsColor: .windowBackgroundColor))
     }
 
-    private var batterySection: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("电量")
+    private var connectionActions: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("连接")
                 .font(.headline)
 
-            HStack(spacing: 12) {
-                BatteryCardView(title: "Left", value: viewModel.state.battery.text(for: .left))
-                BatteryCardView(title: "Right", value: viewModel.state.battery.text(for: .right))
-                BatteryCardView(title: "Case", value: viewModel.state.battery.text(for: .batteryCase))
-            }
-        }
-    }
-
-    private var actionSection: some View {
-        HStack(spacing: 10) {
-            Button("刷新电量") {
-                Task {
-                    await viewModel.refreshBattery()
-                }
-            }
-            .disabled(viewModel.state.connectionStatus != .connected || viewModel.isBusy)
-
-            Button("重连") {
-                Task {
-                    await viewModel.reconnect()
-                }
-            }
-            .disabled(viewModel.isBusy)
-
-            if viewModel.state.connectionStatus == .disconnected || viewModel.state.connectionStatus == .error || viewModel.state.connectionStatus == .handshakeFailed {
-                Button("连接") {
+            HStack(spacing: 10) {
+                Button("刷新电量") {
                     Task {
-                        await viewModel.connect()
+                        await viewModel.refreshBattery()
+                    }
+                }
+                .disabled(viewModel.state.connectionStatus != .connected || viewModel.isBusy)
+
+                Button("重连") {
+                    Task {
+                        await viewModel.reconnect()
                     }
                 }
                 .disabled(viewModel.isBusy)
+
+                if viewModel.state.connectionStatus == .disconnected ||
+                    viewModel.state.connectionStatus == .error ||
+                    viewModel.state.connectionStatus == .handshakeFailed {
+                    Button("连接") {
+                        Task {
+                            await viewModel.connect()
+                        }
+                    }
+                    .disabled(viewModel.isBusy)
+                }
+            }
+            .buttonStyle(.bordered)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+struct DeviceOverviewContent: View {
+    @ObservedObject var viewModel: EarbudsViewModel
+    @State private var blinkStatusDot = false
+
+    private var statusDotColor: Color {
+        switch viewModel.state.connectionStatus {
+        case .connected:
+            return .green
+        case .disconnected:
+            return .red
+        case .connecting, .handshaking, .reconnecting:
+            return .white
+        case .error, .handshakeFailed:
+            return .yellow
+        }
+    }
+
+    private var shouldBlinkStatusDot: Bool {
+        switch viewModel.state.connectionStatus {
+        case .connecting, .handshaking, .reconnecting:
+            return true
+        default:
+            return false
+        }
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            VStack(alignment: .leading, spacing: 3) {
+                HStack(spacing: 8) {
+                    Circle()
+                        .fill(statusDotColor)
+                        .frame(width: 8, height: 8)
+                        .opacity(shouldBlinkStatusDot ? (blinkStatusDot ? 0.25 : 1.0) : 1.0)
+                        .onAppear {
+                            updateBlinking(isBlinking: shouldBlinkStatusDot)
+                        }
+                        .onChange(of: shouldBlinkStatusDot) { _, isBlinking in
+                            updateBlinking(isBlinking: isBlinking)
+                        }
+
+                    Text(viewModel.state.connectionStatus.localizedTitle)
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                }
+
+                Text(viewModel.state.deviceName)
+                    .font(.largeTitle)
+                    .lineLimit(2)
+            }
+
+            HStack {
+                BatteryRowView(value: viewModel.state.battery.text(for: .left)) {
+                    Image(systemName: "l.circle.fill")
+                        .font(.system(size: 14))
+                        .symbolRenderingMode(.monochrome)
+                        .foregroundStyle(.secondary)
+                        .accessibilityLabel("Left")
+                }
+
+                BatteryRowView(value: viewModel.state.battery.text(for: .right)) {
+                    Image(systemName: "r.circle.fill")
+                        .font(.system(size: 14))
+                        .symbolRenderingMode(.monochrome)
+                        .foregroundStyle(.secondary)
+                        .accessibilityLabel("Right")
+                }
+
+                BatteryRowView(value: viewModel.state.battery.text(for: .batteryCase)) {
+                    Image("oppobuds.case.fill")
+                        .resizable()
+                        .scaledToFit()
+                        .symbolRenderingMode(.monochrome)
+                        .foregroundStyle(.secondary)
+                        .frame(width: 16, height: 16)
+                        .accessibilityLabel("Case")
+                }
+            }
+
+            GeometryReader { geometry in
+                DeviceImageView(
+                    imageName: DeviceImageProvider.shared.primaryImageName(for: viewModel.state),
+                    fallbackSystemName: "headphones"
+                )
+                .frame(width: geometry.size.width, height: geometry.size.width)
+                .position(x: geometry.size.width / 2, y: geometry.size.width / 2)
+            }
+            .aspectRatio(1, contentMode: .fit)
+            .frame(maxWidth: .infinity)
+        }
+    }
+
+    private func updateBlinking(isBlinking: Bool) {
+        blinkStatusDot = false
+
+        if isBlinking {
+            withAnimation(.easeInOut(duration: 0.7).repeatForever(autoreverses: true)) {
+                blinkStatusDot = true
             }
         }
+    }
+}
+
+private struct DevicesSidebarView: View {
+    @ObservedObject var viewModel: EarbudsViewModel
+    @Binding var currentPage: MainWindowPage
+    let errorLogCount: Int
+
+    private var devices: [PairedDevice] {
+        [PairedDevice(state: viewModel.state)]
+    }
+
+    var body: some View {
+        List {
+            Section("我的设备") {
+                ForEach(devices) { device in
+                    DeviceSidebarRow(
+                        device: device,
+                        connectionStatus: viewModel.state.connectionStatus,
+                        isSelected: currentPage == .device(device.id)
+                    ) {
+                        select(.device(device.id))
+                    }
+                    .listRowInsets(EdgeInsets(top: 4, leading: 10, bottom: 4, trailing: 10))
+                    .listRowBackground(Color.clear)
+                }
+            }
+
+            Section {
+                SidebarNavigationRow(
+                    title: "日志",
+                    systemImage: "doc.text",
+                    badgeCount: errorLogCount,
+                    isSelected: currentPage == .logs
+                ) {
+                    select(.logs)
+                }
+                .listRowInsets(EdgeInsets(top: 4, leading: 10, bottom: 4, trailing: 10))
+                .listRowBackground(Color.clear)
+            }
+
+            Section {
+                SidebarNavigationRow(
+                    title: "设置",
+                    systemImage: "gearshape",
+                    isSelected: currentPage == .settings
+                ) {
+                    select(.settings)
+                }
+                .listRowInsets(EdgeInsets(top: 4, leading: 10, bottom: 4, trailing: 10))
+                .listRowBackground(Color.clear)
+            }
+        }
+        .listStyle(.sidebar)
+        .navigationTitle("设备")
+    }
+
+    private func select(_ page: MainWindowPage) {
+        withAnimation(.snappy(duration: 0.24)) {
+            currentPage = page
+        }
+    }
+}
+
+private struct SidebarNavigationRow: View {
+    let title: String
+    let systemImage: String
+    var badgeCount = 0
+    let isSelected: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 8) {
+                Label(title, systemImage: systemImage)
+
+                Spacer()
+
+                if badgeCount > 0 {
+                    Text(badgeCount > 99 ? "99+" : "\(badgeCount)")
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 5)
+                        .frame(minWidth: 18, minHeight: 18)
+                        .background(.red, in: Capsule())
+                }
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 9)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(selectionBackground, in: RoundedRectangle(cornerRadius: 8))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var selectionBackground: Color {
+        isSelected ? Color.primary.opacity(0.10) : Color.clear
+    }
+}
+
+private struct DeviceSidebarRow: View {
+    let device: PairedDevice
+    let connectionStatus: ConnectionStatus
+    let isSelected: Bool
+    let action: () -> Void
+    private var imageName: String? {
+        device.selectedImageName ?? device.defaultImageName
+    }
+
+    init(
+        device: PairedDevice,
+        connectionStatus: ConnectionStatus,
+        isSelected: Bool,
+        action: @escaping () -> Void
+    ) {
+        self.device = device
+        self.connectionStatus = connectionStatus
+        self.isSelected = isSelected
+        self.action = action
+    }
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 10) {
+                DeviceImageView(
+                    imageName: imageName,
+                    fallbackSystemName: "headphones",
+                    size: CGSize(width: 44, height: 44)
+                )
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(device.displayName)
+                        .font(.callout.weight(.medium))
+                        .lineLimit(2)
+
+                    Label(connectionStatus.localizedTitle, systemImage: connectionStatus == .connected ? "checkmark.circle.fill" : "circle")
+                        .font(.caption)
+                        .foregroundStyle(connectionStatus == .connected ? .green : .secondary)
+                }
+            }
+            .padding(10)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(selectionBackground, in: RoundedRectangle(cornerRadius: 8))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var selectionBackground: Color {
+        isSelected ? Color.primary.opacity(0.10) : Color.clear
+    }
+}
+
+struct LogsPageView: View {
+    @ObservedObject var viewModel: EarbudsViewModel
+
+    var body: some View {
+        ScrollView(showsIndicators: false) {
+            VStack(alignment: .leading, spacing: 16) {
+                MainWindowCard {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("当前连接状态")
+                            .font(.headline)
+
+                        Text(viewModel.state.connectionStatus.localizedTitle)
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
+
+                        Divider()
+
+                        Text("最近错误")
+                            .font(.headline)
+
+                        Text(viewModel.state.lastError ?? "暂无错误")
+                            .font(.callout)
+                            .foregroundStyle(viewModel.state.lastError == nil ? AnyShapeStyle(.secondary) : AnyShapeStyle(.red))
+                            .textSelection(.enabled)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+
+                MainWindowCard {
+                    VStack(alignment: .leading, spacing: 12) {
+                        HStack {
+                            Text("日志列表")
+                                .font(.headline)
+
+                            Spacer()
+
+                            Button("复制日志") {
+                                copyLogs()
+                            }
+                            .disabled(viewModel.debugEvents.isEmpty)
+
+                            Button("清空日志") {}
+                                .disabled(true)
+                        }
+
+                        if viewModel.debugEvents.isEmpty {
+                            Text("暂无日志")
+                                .font(.callout)
+                                .foregroundStyle(.secondary)
+                        } else {
+                            VStack(alignment: .leading, spacing: 8) {
+                                ForEach(Array(viewModel.debugEvents.enumerated()), id: \.offset) { _, event in
+                                    Text(event)
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                        .textSelection(.enabled)
+                                        .frame(maxWidth: .infinity, alignment: .leading)
+                                }
+                            }
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+            }
+            .padding(.horizontal, 20)
+            .padding(.bottom, 24)
+        }
+    }
+
+    private func copyLogs() {
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(viewModel.debugEvents.joined(separator: "\n"), forType: .string)
+    }
+}
+
+private struct SettingsPageView: View {
+    @ObservedObject var viewModel: EarbudsViewModel
+
+    private var devices: [PairedDevice] {
+        [PairedDevice(state: viewModel.state)]
+    }
+
+    var body: some View {
+        Form {
+            Section("设备") {
+                ForEach(devices) { device in
+                    DeviceSettingsRow(device: device)
+                }
+            }
+
+            Section("外观") {
+                LabeledContent("主题", value: "跟随系统")
+            }
+        }
+        .formStyle(.grouped)
+        .padding(.horizontal, 20)
+        .padding(.bottom, 24)
+    }
+}
+
+private struct DeviceSettingsRow: View {
+    let device: PairedDevice
+    @State private var selectedImageName: String
+
+    init(device: PairedDevice) {
+        self.device = device
+        _selectedImageName = State(initialValue: device.selectedImageName ?? device.defaultImageName ?? "")
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 12) {
+                DeviceImageView(
+                    imageName: selectedImageName.isEmpty ? device.defaultImageName : selectedImageName,
+                    fallbackSystemName: "headphones",
+                    size: CGSize(width: 44, height: 44)
+                )
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(device.displayName)
+                        .font(.headline)
+
+                    Text(device.lastConnectedText)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            LabeledContent("蓝牙地址", value: device.modelIdentifier)
+
+            if device.availableImageNames.count > 1 {
+                Picker("机身颜色", selection: $selectedImageName) {
+                    ForEach(device.availableImageNames, id: \.self) { imageName in
+                        Text(DeviceImageProvider.shared.displayTitle(for: imageName))
+                            .tag(imageName)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .onChange(of: selectedImageName) { _, imageName in
+                    DeviceImageProvider.shared.setSelectedImageName(imageName, for: device.id)
+                }
+            } else if let imageName = device.defaultImageName {
+                LabeledContent("机身颜色", value: DeviceImageProvider.shared.displayTitle(for: imageName))
+            }
+        }
+        .padding(.vertical, 6)
+    }
+}
+
+private struct MainWindowCard<Content: View>: View {
+    @ViewBuilder var content: Content
+
+    var body: some View {
+        content
+    }
+}
+
+
+
+private extension View {
+    func mainWindowTitleBarAppearance() -> some View {
+        background(MainWindowTitleBarConfigurator())
+    }
+}
+
+private struct MainWindowTitleBarConfigurator: NSViewRepresentable {
+    func makeNSView(context: Context) -> NSView {
+        let view = NSView()
+
+        DispatchQueue.main.async {
+            configureWindow(for: view)
+        }
+
+        return view
+    }
+
+    func updateNSView(_ nsView: NSView, context: Context) {
+        DispatchQueue.main.async {
+            configureWindow(for: nsView)
+        }
+    }
+
+    private func configureWindow(for view: NSView) {
+        guard let window = view.window else { return }
+
+        window.titleVisibility = .hidden
+        window.titlebarAppearsTransparent = true
+        window.titlebarSeparatorStyle = .none
+        window.isMovableByWindowBackground = true
+        window.styleMask.insert(.fullSizeContentView)
+        window.styleMask.remove(.fullScreen)
+        window.collectionBehavior.remove(.fullScreenPrimary)
+        window.collectionBehavior.remove(.fullScreenAuxiliary)
+        window.minSize = CGSize(width: 768, height: 720)
+        window.maxSize = CGSize(width: 768, height: 1440)
+        window.standardWindowButton(.zoomButton)?.isEnabled = false
+
+        window.isOpaque = false
+        window.backgroundColor = .clear
+
+        window.toolbar?.showsBaselineSeparator = false
     }
 }
 

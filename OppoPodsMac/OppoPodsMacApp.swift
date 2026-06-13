@@ -18,14 +18,14 @@ struct OppoPodsMacApp: App {
     }
 
     var body: some Scene {
-        WindowGroup("OppoPodsMac", id: "main") {
+        WindowGroup("", id: "main") {
             MainWindowView()
                 .environmentObject(viewModel)
                 .onAppear {
                     viewModel.start()
                 }
         }
-        .defaultSize(width: 720, height: 520)
+        .defaultSize(width: 768, height: 720)
 
         MenuBarExtra {
             MenuBarContentView()
