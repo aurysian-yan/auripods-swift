@@ -279,7 +279,7 @@ private struct DevicesSidebarView: View {
 
     var body: some View {
         List {
-            Section("我的设备") {
+            Section() {
                 ForEach(devices) { device in
                     DeviceSidebarRow(
                         device: device,
@@ -288,12 +288,12 @@ private struct DevicesSidebarView: View {
                     ) {
                         select(.device(device.id))
                     }
-                    .listRowInsets(EdgeInsets(top: 4, leading: 10, bottom: 4, trailing: 10))
+                    .listRowInsets(EdgeInsets(top: 2, leading: -8, bottom: 4, trailing: -8))
                     .listRowBackground(Color.clear)
                 }
             }
 
-            Section {
+            Section() {
                 SidebarNavigationRow(
                     title: "日志",
                     systemImage: "doc.text",
@@ -302,11 +302,9 @@ private struct DevicesSidebarView: View {
                 ) {
                     select(.logs)
                 }
-                .listRowInsets(EdgeInsets(top: 4, leading: 10, bottom: 4, trailing: 10))
+                .listRowInsets(EdgeInsets(top: 2, leading: -8, bottom: 4, trailing: -8))
                 .listRowBackground(Color.clear)
-            }
 
-            Section {
                 SidebarNavigationRow(
                     title: "设置",
                     systemImage: "gearshape",
@@ -314,7 +312,7 @@ private struct DevicesSidebarView: View {
                 ) {
                     select(.settings)
                 }
-                .listRowInsets(EdgeInsets(top: 4, leading: 10, bottom: 4, trailing: 10))
+                .listRowInsets(EdgeInsets(top: 2, leading: -8, bottom: 4, trailing: -8))
                 .listRowBackground(Color.clear)
             }
         }
@@ -338,24 +336,31 @@ private struct SidebarNavigationRow: View {
 
     var body: some View {
         Button(action: action) {
-            HStack(spacing: 8) {
-                Label(title, systemImage: systemImage)
+            HStack(spacing: 4) {
+                Label {
+                    Text(title)
+                        .font(.system(size: 14).weight(.semibold))
+                } icon: {
+                    Image(systemName: systemImage)
+                        .font(.system(size: 16, weight: .semibold))
+                        .frame(width: 22, alignment: .center)
+                }
 
                 Spacer()
 
                 if badgeCount > 0 {
                     Text(badgeCount > 99 ? "99+" : "\(badgeCount)")
-                        .font(.caption2.weight(.semibold))
+                        .font(.system(size: 12).weight(.semibold))
                         .foregroundStyle(.white)
                         .padding(.horizontal, 5)
                         .frame(minWidth: 18, minHeight: 18)
                         .background(.red, in: Capsule())
                 }
             }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 9)
+            .padding(.horizontal, 6)
+            .padding(.vertical, 8)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(selectionBackground, in: RoundedRectangle(cornerRadius: 8))
+            .background(selectionBackground, in: RoundedRectangle(cornerRadius: 12))
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -367,12 +372,41 @@ private struct SidebarNavigationRow: View {
 }
 
 private struct DeviceSidebarRow: View {
+    @EnvironmentObject private var viewModel: EarbudsViewModel
     let device: PairedDevice
     let connectionStatus: ConnectionStatus
     let isSelected: Bool
     let action: () -> Void
     private var imageName: String? {
         device.selectedImageName ?? device.defaultImageName
+    }
+    
+    @State private var isDebugExpanded = false
+    @State private var blinkStatusDot = false
+
+    private var statusDotColor: Color {
+        switch viewModel.state.connectionStatus {
+        case .connected:
+            return .green
+
+        case .disconnected:
+            return .red
+
+        case .connecting, .handshaking, .reconnecting:
+            return .white
+
+        case .error, .handshakeFailed:
+            return .yellow
+        }
+    }
+
+    private var shouldBlinkStatusDot: Bool {
+        switch viewModel.state.connectionStatus {
+        case .connecting, .handshaking, .reconnecting:
+            return true
+        default:
+            return false
+        }
     }
 
     init(
@@ -390,25 +424,53 @@ private struct DeviceSidebarRow: View {
     var body: some View {
         Button(action: action) {
             HStack(spacing: 10) {
-                DeviceImageView(
-                    imageName: imageName,
-                    fallbackSystemName: "headphones",
-                    size: CGSize(width: 44, height: 44)
-                )
+                HStack(){
+                    DeviceImageView(
+                        imageName: imageName,
+                        fallbackSystemName: "headphones",
+                        size: CGSize(width: 56, height: 56)
+                    )
+                }
+                .frame(width: 50, height: 50)
 
                 VStack(alignment: .leading, spacing: 3) {
                     Text(device.displayName)
-                        .font(.callout.weight(.medium))
+                        .font(.system(size: 15))
                         .lineLimit(2)
-
-                    Label(connectionStatus.localizedTitle, systemImage: connectionStatus == .connected ? "checkmark.circle.fill" : "circle")
-                        .font(.caption)
-                        .foregroundStyle(connectionStatus == .connected ? .green : .secondary)
+                    
+                    HStack(spacing: 6) {
+                        Circle()
+                            .fill(statusDotColor)
+                            .frame(width: 6, height: 6)
+                            .opacity(shouldBlinkStatusDot ? (blinkStatusDot ? 0.25 : 1.0) : 1.0)
+                            .onAppear {
+                                blinkStatusDot = false
+                                
+                                if shouldBlinkStatusDot {
+                                    withAnimation(.easeInOut(duration: 0.7).repeatForever(autoreverses: true)) {
+                                        blinkStatusDot = true
+                                    }
+                                }
+                            }
+                            .onChange(of: shouldBlinkStatusDot) { _, isBlinking in
+                                blinkStatusDot = false
+                                
+                                if isBlinking {
+                                    withAnimation(.easeInOut(duration: 0.7).repeatForever(autoreverses: true)) {
+                                        blinkStatusDot = true
+                                    }
+                                }
+                            }
+                        
+                        Text(connectionStatus.localizedTitle)
+                            .font(.caption)
+                            .foregroundStyle(connectionStatus == .connected ? .green : .secondary)
+                    }
                 }
             }
-            .padding(10)
+            .padding(4)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(selectionBackground, in: RoundedRectangle(cornerRadius: 8))
+            .background(selectionBackground, in: RoundedRectangle(cornerRadius: 12))
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
