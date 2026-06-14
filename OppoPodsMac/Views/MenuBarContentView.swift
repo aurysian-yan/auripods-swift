@@ -100,13 +100,13 @@ struct MenuBarContentView: View {
                 )
                 .frame(width: geometry.size.width, height: geometry.size.width)
                 .scaleEffect(1)
-                .offset(x: -4, y: 0)
                 .position(x: geometry.size.width / 2, y: geometry.size.width / 2)
             }
             .frame(maxWidth: .infinity)
-            .frame(height: 260)
-            .padding(.top, -48)
-            .padding(.bottom, 0)
+            .frame(height: 230)
+            .padding(.horizontal, 24)
+            .padding(.top, 4)
+            .padding(.bottom, 4)
             .clipped()
 
             Divider()

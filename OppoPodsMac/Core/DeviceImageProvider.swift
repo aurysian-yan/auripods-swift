@@ -14,7 +14,21 @@ struct DeviceImageDescriptor {
     let productId: String?
     let colorId: String?
     let modelName: String?
+    let displayTitle: String
     let imageSet: DeviceImageSet
+}
+
+struct SupportedDeviceOption: Identifiable, Equatable {
+    let id: String
+    let displayName: String
+    let productId: String?
+    let colorId: String?
+    let colorTitle: String
+    let imageName: String?
+
+    var pickerTitle: String {
+        "\(displayName) · \(colorTitle)"
+    }
 }
 
 final class DeviceImageProvider {
@@ -22,38 +36,12 @@ final class DeviceImageProvider {
 
     private let descriptors: [DeviceImageDescriptor]
     private let selectedImageNameKeyPrefix = "selectedDeviceImageName."
-    private let defaultImageSet = DeviceImageSet(
-        primary: "oppo_enco_air4_pro_white",
-        caseImage: "oppo_enco_air4_pro_black",
-        leftBud: nil,
-        rightBud: nil
-    )
+    private var defaultImageSet: DeviceImageSet {
+        descriptors.first?.imageSet ?? .empty
+    }
 
     private init() {
-        descriptors = [
-            DeviceImageDescriptor(
-                productId: "oppo_enco_air4_pro",
-                colorId: "white",
-                modelName: "OPPO Enco Air4 Pro",
-                imageSet: DeviceImageSet(
-                    primary: "oppo_enco_air4_pro_white",
-                    caseImage: "oppo_enco_air4_pro_white",
-                    leftBud: nil,
-                    rightBud: nil
-                )
-            ),
-            DeviceImageDescriptor(
-                productId: "oppo_enco_air4_pro",
-                colorId: "black",
-                modelName: "OPPO Enco Air4 Pro",
-                imageSet: DeviceImageSet(
-                    primary: "oppo_enco_air4_pro_black",
-                    caseImage: "oppo_enco_air4_pro_black",
-                    leftBud: nil,
-                    rightBud: nil
-                )
-            )
-        ]
+        descriptors = DeviceImageDescriptor.generatedCatalog
     }
 
     func imageSet(for state: EarbudsState) -> DeviceImageSet {
@@ -94,32 +82,18 @@ final class DeviceImageProvider {
     }
 
     func imageSet(productId: String? = nil, colorId: String? = nil, modelName: String? = nil) -> DeviceImageSet {
-        let normalizedProductId = normalized(productId)
-        let normalizedColorId = colorKey(from: colorId) ?? colorKey(from: modelName)
+        let normalizedColorId = normalized(colorId) ?? colorKey(from: modelName)
+        let matchingDescriptors = matchingDescriptors(productId: productId, modelName: modelName)
 
-        if let normalizedProductId {
-            if let descriptor = descriptors.first(where: { descriptor in
-                normalized(descriptor.productId) == normalizedProductId &&
-                normalized(descriptor.colorId) == normalizedColorId
-            }) {
-                return validated(descriptor.imageSet)
-            }
-
-            if let descriptor = descriptors.first(where: { descriptor in
-                normalized(descriptor.productId) == normalizedProductId
-            }) {
-                return validated(descriptor.imageSet)
-            }
-        }
-
-        if let descriptor = descriptors.first(where: { descriptor in
-            matches(modelName: modelName, descriptor: descriptor) &&
-                (normalizedColorId == nil || normalized(descriptor.colorId) == normalizedColorId)
-        }) {
+        if let descriptor = matchingDescriptors.first(where: { colorMatches(normalizedColorId, descriptor: $0) }) {
             return validated(descriptor.imageSet)
         }
 
-        if modelName == nil && normalizedProductId == nil {
+        if let descriptor = matchingDescriptors.first {
+            return validated(descriptor.imageSet)
+        }
+
+        if modelName == nil && productId == nil {
             return validated(defaultImageSet)
         }
 
@@ -150,14 +124,7 @@ final class DeviceImageProvider {
     }
 
     func availableImageNames(productId: String? = nil, modelName: String? = nil) -> [String] {
-        let normalizedProductId = normalized(productId)
-        let matchingDescriptors = descriptors.filter { descriptor in
-            if let normalizedProductId {
-                return normalized(descriptor.productId) == normalizedProductId
-            }
-
-            return matches(modelName: modelName, descriptor: descriptor)
-        }
+        let matchingDescriptors = matchingDescriptors(productId: productId, modelName: modelName)
 
         let imageNames = matchingDescriptors.compactMap { availableImageName($0.imageSet.primary) }
 
@@ -218,17 +185,40 @@ final class DeviceImageProvider {
 
     func displayTitle(for imageName: String) -> String {
         if let descriptor = descriptors.first(where: { $0.imageSet.primary == imageName }) {
-            switch descriptor.colorId {
-            case "white":
-                return "白色"
-            case "black":
-                return "黑色"
-            default:
-                return descriptor.colorId ?? imageName
-            }
+            return descriptor.displayTitle
         }
 
         return imageName
+    }
+
+    func supportedDeviceOptions() -> [SupportedDeviceOption] {
+        descriptors.compactMap { descriptor in
+            let displayName = descriptor.modelName ?? descriptor.productId
+            guard let displayName,
+                  let imageName = availableImageName(descriptor.imageSet.primary) else {
+                return nil
+            }
+
+            let optionId = [
+                identifier(descriptor.productId),
+                identifier(descriptor.colorId),
+                identifier(descriptor.imageSet.primary)
+            ]
+                .compactMap { $0 }
+                .joined(separator: "-")
+
+            return SupportedDeviceOption(
+                id: optionId,
+                displayName: displayName,
+                productId: descriptor.productId,
+                colorId: descriptor.colorId,
+                colorTitle: descriptor.displayTitle,
+                imageName: imageName
+            )
+        }
+        .sorted { first, second in
+            first.pickerTitle.localizedStandardCompare(second.pickerTitle) == .orderedAscending
+        }
     }
 
     private func validated(_ imageSet: DeviceImageSet) -> DeviceImageSet {
@@ -260,12 +250,38 @@ final class DeviceImageProvider {
         }
     }
 
+    private func matchingDescriptors(productId: String?, modelName: String?) -> [DeviceImageDescriptor] {
+        if let productId = identifier(productId) {
+            return descriptors.filter { identifier($0.productId) == productId }
+        }
+
+        let matchedDescriptors = descriptors.filter { matches(modelName: modelName, descriptor: $0) }
+        let maximumModelLength = matchedDescriptors
+            .compactMap { identifier($0.modelName)?.count }
+            .max()
+
+        guard let maximumModelLength else {
+            return []
+        }
+
+        return matchedDescriptors.filter { identifier($0.modelName)?.count == maximumModelLength }
+    }
+
+    private func colorMatches(_ colorId: String?, descriptor: DeviceImageDescriptor) -> Bool {
+        guard let colorId else {
+            return true
+        }
+
+        return normalized(descriptor.colorId) == colorId || colorKey(from: descriptor.colorId) == colorId
+    }
+
     private func matches(modelName: String?, descriptor: DeviceImageDescriptor) -> Bool {
-        guard let modelName, let descriptorModelName = descriptor.modelName else {
+        guard let modelName = identifier(modelName),
+              let descriptorModelName = identifier(descriptor.modelName) else {
             return false
         }
 
-        return normalized(modelName)?.contains(normalized(descriptorModelName) ?? "") == true
+        return modelName.contains(descriptorModelName)
     }
 
     private func isKnownFamily(_ modelName: String?) -> Bool {
@@ -281,7 +297,16 @@ final class DeviceImageProvider {
             return nil
         }
 
-        if value.contains("black") || value.contains("dark") || value.contains("night") || value.contains("星夜") || value.contains("黑") {
+        if value.contains("black") ||
+            value.contains("dark") ||
+            value.contains("gray") ||
+            value.contains("grey") ||
+            value.contains("night") ||
+            value.contains("星夜") ||
+            value.contains("暗") ||
+            value.contains("灰") ||
+            value.contains("黑") ||
+            value.contains("夜") {
             return "black"
         }
 
@@ -302,5 +327,19 @@ final class DeviceImageProvider {
         }
 
         return normalizedValue
+    }
+
+    private func identifier(_ value: String?) -> String? {
+        guard let normalizedValue = normalized(value) else {
+            return nil
+        }
+
+        let identifier = normalizedValue.unicodeScalars.filter { CharacterSet.alphanumerics.contains($0) }
+
+        guard !identifier.isEmpty else {
+            return nil
+        }
+
+        return String(String.UnicodeScalarView(identifier))
     }
 }

@@ -11,6 +11,7 @@ struct PairedDevice: Identifiable, Equatable {
     let isSystemConnected: Bool
     let isAppControllable: Bool
     let fallbackSystemName: String
+    let connectionStatusOverride: ConnectionStatus?
 
     init(
         id: String,
@@ -22,7 +23,8 @@ struct PairedDevice: Identifiable, Equatable {
         snapshot: BluetoothDeviceSnapshot?,
         isSystemConnected: Bool,
         isAppControllable: Bool,
-        fallbackSystemName: String
+        fallbackSystemName: String,
+        connectionStatusOverride: ConnectionStatus? = nil
     ) {
         self.id = id
         self.displayName = displayName
@@ -34,6 +36,7 @@ struct PairedDevice: Identifiable, Equatable {
         self.isSystemConnected = isSystemConnected
         self.isAppControllable = isAppControllable
         self.fallbackSystemName = fallbackSystemName
+        self.connectionStatusOverride = connectionStatusOverride
     }
 
     init(state: EarbudsState) {
