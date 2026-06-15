@@ -126,7 +126,7 @@
       ],
       "blur-material-specializations" : [
         {
-          "value" : 0.66
+          "value" : 1
         },
         {
           "appearance" : "dark",
@@ -138,7 +138,7 @@
           "fill-specializations" : [
             {
               "value" : {
-                "solid" : "display-p3:1.00000,1.00000,1.00000,0.56000"
+                "solid" : "display-p3:1.00000,1.00000,1.00000,0.63000"
               }
             },
             {
@@ -176,61 +176,6 @@
                 "translation-in-points" : [
                   18.50042207236811,
                   6.572080008938315
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "fill" : {
-            "solid" : "display-p3:0.02708,0.24979,0.01870,0.42000"
-          },
-          "image-name" : "airpods.pro.left 13.svg",
-          "name" : "airpods.pro.left 13",
-          "opacity" : 1,
-          "position-specializations" : [
-            {
-              "idiom" : "square",
-              "value" : {
-                "scale" : 1.5,
-                "translation-in-points" : [
-                  6,
-                  6
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "blend-mode" : "plus-lighter",
-          "glass" : false,
-          "image-name-specializations" : [
-            {
-              "value" : "airpods.pro.left 14.png"
-            },
-            {
-              "idiom" : "square",
-              "value" : "airpods.pro.left 14.png"
-            }
-          ],
-          "name" : "airpods.pro.left 14",
-          "opacity-specializations" : [
-            {
-              "value" : 0.81
-            },
-            {
-              "appearance" : "tinted",
-              "value" : 0
-            }
-          ],
-          "position-specializations" : [
-            {
-              "idiom" : "square",
-              "value" : {
-                "scale" : 1.47,
-                "translation-in-points" : [
-                  106,
-                  43
                 ]
               }
             }
@@ -305,6 +250,65 @@
       ],
       "layers" : [
         {
+          "fill" : {
+            "solid" : "display-p3:0.07392,0.07639,0.24979,0.42000"
+          },
+          "image-name" : "airpods.pro.left 13.svg",
+          "name" : "airpods.pro.left 13",
+          "opacity" : 1,
+          "position-specializations" : [
+            {
+              "idiom" : "square",
+              "value" : {
+                "scale" : 1.5,
+                "translation-in-points" : [
+                  -5,
+                  -12
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "blend-mode" : "plus-lighter",
+          "glass" : false,
+          "image-name-specializations" : [
+            {
+              "value" : "airpods.pro.left 14.png"
+            },
+            {
+              "idiom" : "square",
+              "value" : "airpods.pro.left 14.png"
+            }
+          ],
+          "name" : "airpods.pro.left 14",
+          "opacity-specializations" : [
+            {
+              "value" : 0.59
+            },
+            {
+              "appearance" : "dark",
+              "value" : 0.62
+            },
+            {
+              "appearance" : "tinted",
+              "value" : 0
+            }
+          ],
+          "position-specializations" : [
+            {
+              "idiom" : "square",
+              "value" : {
+                "scale" : 1.47,
+                "translation-in-points" : [
+                  106,
+                  43
+                ]
+              }
+            }
+          ]
+        },
+        {
           "blend-mode" : "multiply",
           "fill-specializations" : [
             {
@@ -348,7 +352,7 @@
           "fill-specializations" : [
             {
               "value" : {
-                "solid" : "display-p3:1.00000,1.00000,1.00000,0.34000"
+                "solid" : "display-p3:1.00000,1.00000,1.00000,0.44000"
               }
             },
             {
