@@ -193,6 +193,7 @@ struct ANCModeSelector: View {
                 in: option.range,
                 step: 1
             )
+            .disabled(true)
 
             ANCDetailLevelTextStrip(titles: option.levelTitles)
         }
@@ -252,7 +253,7 @@ private struct ANCDetailOption: Identifiable, Equatable {
         return ANCDetailOption(
             id: "oppo-noise-cancellation",
             mode: mode,
-            title: "降噪强度",
+            title: "降噪强度(还没做)",
             levelTitles: ["深度降噪", "中度降噪", "轻度降噪", "智能切换"],
             defaultValue: 0
         )
@@ -264,7 +265,7 @@ private struct ANCDetailOption: Identifiable, Equatable {
             return ANCDetailOption(
                 id: "xiaomi-noise-cancellation",
                 mode: mode,
-                title: "降噪强度",
+                title: "降噪强度(还没做)",
                 levelTitles: ["深度降噪", "中度降噪", "轻度降噪", "自适应"],
                 defaultValue: 1
             )
@@ -272,7 +273,7 @@ private struct ANCDetailOption: Identifiable, Equatable {
             return ANCDetailOption(
                 id: "xiaomi-transparency",
                 mode: mode,
-                title: "通透强度",
+                title: "通透强度(还没做)",
                 levelTitles: ["标准", "环境增强", "人声增强"],
                 defaultValue: 2
             )
@@ -294,7 +295,8 @@ private struct ANCDetailLevelTextStrip: View {
             ZStack(alignment: .leading) {
                 ForEach(Array(titles.enumerated()), id: \.offset) { index, title in
                     Text(title)
-                        .font(.caption2)
+                        .padding(.horizontal, 32)
+                        .font(.caption)
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
                         .minimumScaleFactor(0.8)
@@ -325,5 +327,6 @@ private struct ANCDetailLevelTextStrip: View {
 #Preview {
     ANCModeSelector(viewModel: EarbudsViewModel())
         .padding()
-        .frame(width: 320)
+        .frame(width: 480)
+        .frame(height: 320)
 }
