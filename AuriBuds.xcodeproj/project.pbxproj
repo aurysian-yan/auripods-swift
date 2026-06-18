@@ -17,6 +17,7 @@
 		9345E1012FE2C59800DC79D9 /* AuriBudsWidgetBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9345E0F92FE2C59800DC79D9 /* AuriBudsWidgetBundle.swift */; };
 		9345E1022FE2C59800DC79D9 /* AppIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9345E0F62FE2C59800DC79D9 /* AppIntent.swift */; };
 		93F49AF72FE2C5B900AE665 /* WidgetHeadphoneData.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93F49AF62FE2C5B900AE665 /* WidgetHeadphoneData.swift */; };
+		93F49AF92FE2C5B900AE665 /* CoreBluetooth.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 93F49AF82FE2C5B900AE665 /* CoreBluetooth.framework */; };
 		93F49DE12FE1781500F9B619 /* AppIcon.icon in Resources */ = {isa = PBXBuildFile; fileRef = 93F49DE02FE1781500F9B619 /* AppIcon.icon */; };
 		AA1000010000000000000001 /* IOBluetooth.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = AA1000020000000000000001 /* IOBluetooth.framework */; };
 		AA1000010000000000000002 /* CoreBluetooth.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = AA1000020000000000000002 /* CoreBluetooth.framework */; };
@@ -56,8 +57,9 @@
 		9345E0F92FE2C59800DC79D9 /* AuriBudsWidgetBundle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuriBudsWidgetBundle.swift; sourceTree = "<group>"; };
 		9345E0FA2FE2C59800DC79D9 /* AuriBudsWidgetControl.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuriBudsWidgetControl.swift; sourceTree = "<group>"; };
 		9345E0FB2FE2C59800DC79D9 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
-		93F49AF62FE2C5B900AE665 /* WidgetHeadphoneData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetHeadphoneData.swift; sourceTree = "<group>"; };
 		9345E1072FE2C5B900DC79D9 /* AuriBudsIOS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = AuriBudsIOS.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		93F49AF62FE2C5B900AE665 /* WidgetHeadphoneData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetHeadphoneData.swift; sourceTree = "<group>"; };
+		93F49AF82FE2C5B900AE665 /* CoreBluetooth.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreBluetooth.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.0.sdk/System/Library/Frameworks/CoreBluetooth.framework; sourceTree = DEVELOPER_DIR; };
 		93F49DE02FE1781500F9B619 /* AppIcon.icon */ = {isa = PBXFileReference; lastKnownFileType = folder.iconcomposer.icon; path = AppIcon.icon; sourceTree = "<group>"; };
 		AA1000020000000000000001 /* IOBluetooth.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = IOBluetooth.framework; path = System/Library/Frameworks/IOBluetooth.framework; sourceTree = SDKROOT; };
 		AA1000020000000000000002 /* CoreBluetooth.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreBluetooth.framework; path = System/Library/Frameworks/CoreBluetooth.framework; sourceTree = SDKROOT; };
@@ -91,6 +93,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				93F49AF92FE2C5B900AE665 /* CoreBluetooth.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -135,6 +138,7 @@
 		AA1000070000000000000001 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				93F49AF82FE2C5B900AE665 /* CoreBluetooth.framework */,
 				9345E0F42FE2C58800DC79D9 /* WidgetKit.framework */,
 				AA1000020000000000000001 /* IOBluetooth.framework */,
 				AA1000020000000000000002 /* CoreBluetooth.framework */,
@@ -189,6 +193,7 @@
 			);
 			fileSystemSynchronizedGroups = (
 				9345E1082FE2C5B900DC79D9 /* AuriBudsIOS */,
+				AA1000040000000000000001 /* AuriBuds */,
 			);
 			name = AuriBudsIOS;
 			packageProductDependencies = (
@@ -421,6 +426,7 @@
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UILaunchStoryboardName = "";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
@@ -462,6 +468,7 @@
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UILaunchStoryboardName = "";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;

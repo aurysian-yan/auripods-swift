@@ -158,7 +158,7 @@ struct DeviceOverviewContent: View {
         case .connecting, .handshaking, .reconnecting:
             return .accentColor
         case .error, .handshakeFailed, .deviceNotFound:
-            return Color.white.opacity(0.55)
+            return .red
         }
     }
 

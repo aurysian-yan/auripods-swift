@@ -2,6 +2,7 @@ import SwiftUI
 
 struct MainWindowView: View {
     @EnvironmentObject private var viewModel: EarbudsViewModel
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @State private var currentPage: MainWindowPage = .home
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
     @Namespace private var deviceTransitionNamespace
@@ -36,13 +37,22 @@ struct MainWindowView: View {
             }
             .background(.thinMaterial)
         }
-        .background(.thinMaterial)
-        .containerBackground(.thinMaterial, for: .window)
-        .mainWindowBehavior(title: currentPageTitle)
-        .frame(minWidth: 512, idealWidth: 648, maxWidth: 768, minHeight: 720, idealHeight: 840, maxHeight: 1440)
-        .navigationTitle(currentPageTitle)
+            .background(.thinMaterial)
+#if os(macOS)
+            .containerBackground(.thinMaterial, for: .window)
+#endif
+#if os(macOS)
+            .mainWindowBehavior(title: currentPageTitle)
+            .frame(minWidth: 512, idealWidth: 648, maxWidth: 768, minHeight: 720, idealHeight: 840, maxHeight: 1440)
+#else
+            .frame(minWidth: 320, idealWidth: 648, maxWidth: .infinity, minHeight: 480, idealHeight: 840, maxHeight: .infinity)
+#endif
+            .navigationTitle(currentPageTitle)
         .onAppear {
             selectCurrentDeviceIfNeeded()
+        }
+        .onChange(of: currentPage) { _, page in
+            updateColumnVisibility(for: page)
         }
         .onChange(of: currentDevice.id) { _, _ in
             updateDevicePageIfNeeded()
@@ -141,6 +151,13 @@ struct MainWindowView: View {
         if currentPage == .home {
             currentPage = .device(currentDevice.id)
         }
+    }
+
+    private func updateColumnVisibility(for page: MainWindowPage) {
+#if os(iOS)
+        guard horizontalSizeClass == .compact else { return }
+        columnVisibility = page == .home ? .all : .detailOnly
+#endif
     }
 
     private func updateDevicePageIfNeeded() {

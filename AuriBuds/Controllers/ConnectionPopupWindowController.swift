@@ -1,3 +1,4 @@
+#if os(macOS)
 import AppKit
 import QuartzCore
 import SwiftUI
@@ -247,3 +248,4 @@ final class ConnectionPopupPanel: NSPanel {
     return ConnectionPopupView(state: state)
         .padding()
 }
+#endif

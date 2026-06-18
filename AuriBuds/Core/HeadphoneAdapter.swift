@@ -1,5 +1,9 @@
 import Foundation
+#if os(macOS)
 import IOBluetooth
+#else
+typealias BluetoothRFCOMMChannelID = UInt8
+#endif
 
 struct HeadphoneAdapterProfile: Equatable {
     let rfcommChannelIDs: [BluetoothRFCOMMChannelID]
@@ -148,12 +152,14 @@ private func isBluetoothLEDeviceNotFound(_ error: Error) -> Bool {
         }
     }
 
+#if os(macOS)
     if let error = error as? BluetoothTransportError {
         switch error {
         case .deviceNotFound:
             return true
         }
     }
+#endif
 
     if let error = error as? XiaomiBLETransportError {
         switch error {

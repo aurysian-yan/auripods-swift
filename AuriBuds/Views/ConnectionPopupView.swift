@@ -1,3 +1,4 @@
+#if os(macOS)
 import AppKit
 import SwiftUI
 
@@ -113,3 +114,4 @@ struct ConnectionPopupView: View {
     return ConnectionPopupView(state: state)
         .padding()
 }
+#endif

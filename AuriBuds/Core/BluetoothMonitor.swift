@@ -1,6 +1,9 @@
+import Combine
 import CoreBluetooth
 import Foundation
+#if os(macOS)
 import IOBluetooth
+#endif
 
 final class BluetoothMonitor: NSObject, ObservableObject {
     static let shared = BluetoothMonitor()
@@ -9,11 +12,13 @@ final class BluetoothMonitor: NSObject, ObservableObject {
     @Published private(set) var lastDisconnectedDevice: BluetoothDeviceSnapshot?
     @Published private(set) var availableDevices: [BluetoothDeviceSnapshot] = []
 
+#if os(macOS)
     private var connectNotification: IOBluetoothUserNotification?
     private var disconnectNotifications: [String: IOBluetoothUserNotification] = [:]
+    private var classicSnapshots: [String: BluetoothDeviceSnapshot] = [:]
+#endif
     private lazy var bleCentral = CBCentralManager(delegate: self, queue: nil)
     private var bleSnapshots: [String: BluetoothDeviceSnapshot] = [:]
-    private var classicSnapshots: [String: BluetoothDeviceSnapshot] = [:]
     private var isStarted = false
 
     private override init() {
@@ -24,16 +29,19 @@ final class BluetoothMonitor: NSObject, ObservableObject {
         guard !isStarted else { return }
         isStarted = true
 
+#if os(macOS)
         connectNotification = IOBluetoothDevice.register(
             forConnectNotifications: self,
             selector: #selector(handleDeviceConnected(_:device:))
         )
 
         refreshAvailableDevices()
+#endif
         startBLEScanIfPossible()
     }
 
     func stop() {
+#if os(macOS)
         connectNotification?.unregister()
         connectNotification = nil
 
@@ -42,12 +50,14 @@ final class BluetoothMonitor: NSObject, ObservableObject {
         }
 
         disconnectNotifications.removeAll()
+        classicSnapshots.removeAll()
+#endif
         bleCentral.stopScan()
         bleSnapshots.removeAll()
-        classicSnapshots.removeAll()
         isStarted = false
     }
 
+#if os(macOS)
     @objc private func handleDeviceConnected(_ notification: IOBluetoothUserNotification, device: IOBluetoothDevice) {
         registerDisconnectNotification(for: device)
         refreshAvailableDevices()
@@ -100,9 +110,14 @@ final class BluetoothMonitor: NSObject, ObservableObject {
             self?.lastDisconnectedDevice = snapshot
         }
     }
+#endif
 
     private func publishAvailableDevices() {
-        let snapshots = Array((classicSnapshots.merging(bleSnapshots) { classic, _ in classic }).values)
+        var allSnapshots = bleSnapshots
+#if os(macOS)
+        allSnapshots = classicSnapshots.merging(bleSnapshots) { classic, _ in classic }
+#endif
+        let snapshots = Array(allSnapshots.values)
             .sorted { first, second in
                 first.name.localizedStandardCompare(second.name) == .orderedAscending
             }
@@ -118,6 +133,7 @@ final class BluetoothMonitor: NSObject, ObservableObject {
         }
     }
 
+#if os(macOS)
     private func snapshot(for device: IOBluetoothDevice, isConnected: Bool) -> BluetoothDeviceSnapshot {
         BluetoothDeviceSnapshot(
             name: device.nameOrAddress ?? device.name ?? device.addressString ?? "Bluetooth Device",
@@ -128,6 +144,7 @@ final class BluetoothMonitor: NSObject, ObservableObject {
             minorDeviceClass: UInt32(device.deviceClassMinor)
         )
     }
+#endif
 
     private func startBLEScanIfPossible() {
         guard isStarted, bleCentral.state == .poweredOn, !bleCentral.isScanning else { return }

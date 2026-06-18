@@ -1,3 +1,4 @@
+#if os(macOS)
 import AppKit
 import SwiftUI
 
@@ -19,7 +20,7 @@ struct MenuBarContentView: View {
             return .accentColor
 
         case .error, .handshakeFailed, .deviceNotFound:
-            return Color.white.opacity(0.55)
+            return .red
         }
     }
 
@@ -191,3 +192,4 @@ struct MenuBarContentView: View {
     MenuBarContentView()
         .environmentObject(EarbudsViewModel())
 }
+#endif

@@ -88,7 +88,9 @@ final class OppoProtocol {
 }
 
 actor OppoProtocolBackend {
+#if os(macOS)
     private let transport = BluetoothHybridTransport()
+#endif
     private let commandQueue = OppoCommandQueue()
     private var connection: OppoTransportConnection?
     private var connectionState: ConnectionState = .disconnected
@@ -341,6 +343,7 @@ actor OppoProtocolBackend {
     }
 
     private func establishConnection(deviceName: String) async throws {
+#if os(macOS)
         closeConnection()
         connectionState = .connecting
         hasSafeHandshakePassed = false
@@ -365,9 +368,13 @@ actor OppoProtocolBackend {
             connectionState = .error(error.localizedDescription)
             throw error
         }
+#else
+        throw OppoProtocolError.notConnected
+#endif
     }
 
     private func establishConnection(device: BluetoothDeviceSnapshot) async throws {
+#if os(macOS)
         closeConnection()
         connectionState = .connecting
         hasSafeHandshakePassed = false
@@ -395,6 +402,9 @@ actor OppoProtocolBackend {
             connectionState = .error(error.localizedDescription)
             throw error
         }
+#else
+        throw OppoProtocolError.notConnected
+#endif
     }
 
     private func requestBattery() async throws -> BatteryState {
@@ -487,12 +497,14 @@ actor OppoProtocolBackend {
     }
 
     private func isStaleConnectionError(_ error: Error) -> Bool {
+#if os(macOS)
         if let error = error as? SafeRfcommError {
             switch error {
             case .writeFailed, .notConnected, .openCompleteFailed, .openCompleteTimeout, .openStartFailed, .channelObjectNil:
                 return true
             }
         }
+#endif
 
         if let error = error as? BluetoothLETransportError {
             switch error {

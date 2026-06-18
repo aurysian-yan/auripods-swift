@@ -6,6 +6,7 @@ struct BatteryCaseChargingIcon: View {
     var body: some View {
         HStack(spacing: 6) {
             Image("oppobuds.case.fill")
+                .renderingMode(.template)
                 .resizable()
                 .scaledToFit()
                 .symbolRenderingMode(.monochrome)

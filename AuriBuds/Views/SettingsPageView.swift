@@ -1,3 +1,6 @@
+#if os(iOS)
+import UIKit
+#endif
 import SwiftUI
 
 struct SettingsPageView: View {
@@ -193,6 +196,7 @@ struct AboutAuriBudsView: View {
 private struct AppIconView: View {
     let size: CGFloat
     var body: some View {
+#if os(macOS)
         if let image = Bundle.main.bestAppIconImage {
             Image(nsImage: image)
                 .resizable()
@@ -202,16 +206,33 @@ private struct AppIconView: View {
                 .frame(width: size, height: size)
                 .accessibilityHidden(true)
         } else {
-            RoundedRectangle(cornerRadius: size * 0.22, style: .continuous)
-                .fill(.quaternary)
-                .overlay {
-                    Image(systemName: "earbuds")
-                        .font(.system(size: size * 0.42, weight: .semibold))
-                        .foregroundStyle(.secondary)
-                }
+            fallbackIcon
+        }
+#else
+        if let image = Bundle.main.bestAppIconImage {
+            Image(uiImage: image)
+                .resizable()
+                .interpolation(.high)
+                .antialiased(true)
+                .aspectRatio(contentMode: .fit)
                 .frame(width: size, height: size)
                 .accessibilityHidden(true)
+        } else {
+            fallbackIcon
         }
+#endif
+    }
+
+    private var fallbackIcon: some View {
+        RoundedRectangle(cornerRadius: size * 0.22, style: .continuous)
+            .fill(.quaternary)
+            .overlay {
+                Image(systemName: "earbuds")
+                    .font(.system(size: size * 0.42, weight: .semibold))
+                    .foregroundStyle(.secondary)
+            }
+            .frame(width: size, height: size)
+            .accessibilityHidden(true)
     }
 }
 
@@ -228,6 +249,7 @@ private extension Bundle {
             ?? "1"
         return "Version \(version) (\(build))"
     }
+#if os(macOS)
     var bestAppIconImage: NSImage? {
         if let runtimeIcon = NSApp.applicationIconImage {
             return runtimeIcon
@@ -244,6 +266,15 @@ private extension Bundle {
         }
         return nil
     }
+#else
+    var bestAppIconImage: UIImage? {
+        if let iconName = object(forInfoDictionaryKey: "CFBundleIconName") as? String,
+           let iconImage = UIImage(named: iconName) {
+            return iconImage
+        }
+        return nil
+    }
+#endif
 }
 
 private struct StatusBarPriorityView: View {

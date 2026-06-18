@@ -1,4 +1,6 @@
+#if os(macOS)
 import AppKit
+#endif
 import SwiftUI
 
 struct DebugLogPanelView: View {
@@ -55,8 +57,12 @@ struct DebugLogPanelView: View {
     }
 
     private func copyLogs() {
+#if os(macOS)
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(events.joined(separator: "\n"), forType: .string)
+#else
+        UIPasteboard.general.string = events.joined(separator: "\n")
+#endif
     }
 }
 

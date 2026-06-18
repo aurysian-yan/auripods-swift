@@ -1,5 +1,7 @@
 import Foundation
+#if os(macOS)
 import IOBluetooth
+#endif
 
 struct OppoDeviceProfile: Equatable {
     let channelIDs: [BluetoothRFCOMMChannelID]

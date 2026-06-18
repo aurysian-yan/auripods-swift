@@ -1,5 +1,7 @@
 import Foundation
+#if os(macOS)
 import IOBluetooth
+#endif
 
 struct XiaomiDeviceProfile: Equatable {
     let channelIDs: [BluetoothRFCOMMChannelID]
@@ -8,6 +10,7 @@ struct XiaomiDeviceProfile: Equatable {
         XiaomiDeviceProfile(channelIDs: [18, 12, 19, 15])
     }
 
+#if os(macOS)
     static func preferredRFCOMMChannelIDs(for device: IOBluetoothDevice) -> [BluetoothRFCOMMChannelID] {
         let services = (device.services ?? []).compactMap { $0 as? IOBluetoothSDPServiceRecord }
         let rankedChannels = services.compactMap { service -> (rank: Int, channel: BluetoothRFCOMMChannelID)? in
@@ -37,6 +40,7 @@ struct XiaomiDeviceProfile: Equatable {
             lhs.rank == rhs.rank ? lhs.channel < rhs.channel : lhs.rank < rhs.rank
         }.map(\.channel))
     }
+#endif
 
     static func isLikelyXiaomiAudioDevice(_ deviceName: String) -> Bool {
         let normalizedName = normalized(deviceName)

@@ -89,7 +89,11 @@ struct DevicesSidebarView: View {
                 .listRowBackground(Color.clear)
             } header: {
                 Rectangle()
+#if os(macOS)
                     .fill(Color(nsColor: .separatorColor))
+#else
+                    .fill(Color(uiColor: .separator))
+#endif
                     .frame(height: 1)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 8)
@@ -140,7 +144,7 @@ private struct SidebarNavigationRow: View {
                 } icon: {
                     Image(systemName: systemImage)
                         .font(.system(size: 14, weight: .medium))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(.secondary)
                         .frame(width: 50, alignment: .center)
                 }
 
@@ -166,7 +170,11 @@ private struct SidebarNavigationRow: View {
     }
 
     private var selectionBackground: Color {
+#if os(macOS)
         isSelected ? Color.primary.opacity(0.10) : Color.clear
+#else
+        Color.clear
+#endif
     }
 }
 
@@ -191,7 +199,7 @@ private struct DeviceSidebarRow: View {
         case .connecting, .handshaking, .reconnecting:
             return .accentColor
         case .error, .handshakeFailed, .deviceNotFound:
-            return Color.white.opacity(0.55)
+            return .red
         }
     }
 
@@ -333,7 +341,11 @@ private struct DeviceSidebarRow: View {
     }
 
     private var selectionBackground: Color {
+#if os(macOS)
         isSelected ? Color.primary.opacity(0.10) : Color.clear
+#else
+        Color.clear
+#endif
     }
 
     private var canRefreshBattery: Bool {

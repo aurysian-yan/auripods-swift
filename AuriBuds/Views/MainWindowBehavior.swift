@@ -1,3 +1,4 @@
+#if os(macOS)
 import AppKit
 import SwiftUI
 
@@ -113,3 +114,4 @@ private struct MainWindowConfigurator: NSViewRepresentable {
         .frame(width: 320, height: 220)
         .mainWindowBehavior(title: "预览")
 }
+#endif

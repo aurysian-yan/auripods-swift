@@ -1,3 +1,4 @@
+#if os(macOS)
 import AppKit
 import SwiftUI
 
@@ -51,6 +52,7 @@ struct AuriBudsApp: App {
                 }
         } label: {
             Image("oppobuds.bud.large")
+                .renderingMode(.template)
                 .font(.system(size: 24, weight: .medium))
                 .symbolRenderingMode(.monochrome)
                 .accessibilityLabel("AuriBuds")
@@ -78,3 +80,4 @@ struct AuriBudsApp: App {
     MainWindowView()
         .environmentObject(EarbudsViewModel())
 }
+#endif

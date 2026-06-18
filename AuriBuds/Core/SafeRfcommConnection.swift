@@ -1,3 +1,4 @@
+#if os(macOS)
 import Foundation
 import IOBluetooth
 
@@ -317,3 +318,4 @@ final class SafeRfcommConnection: OppoTransportConnection {
         }
     }
 }
+#endif

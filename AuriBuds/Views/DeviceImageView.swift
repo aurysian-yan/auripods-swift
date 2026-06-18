@@ -1,4 +1,8 @@
+#if os(macOS)
 import AppKit
+#elseif os(iOS)
+import UIKit
+#endif
 import SwiftUI
 
 struct DeviceImageView: View {
@@ -26,6 +30,7 @@ struct DeviceImageView: View {
 
     @ViewBuilder
     private var content: some View {
+#if os(macOS)
         if let imageName, let nsImage = NSImage(named: imageName) {
             Image(nsImage: nsImage)
                 .resizable()
@@ -33,6 +38,15 @@ struct DeviceImageView: View {
         } else {
             fallbackImage
         }
+#else
+        if let imageName, let uiImage = UIImage(named: imageName) {
+            Image(uiImage: uiImage)
+                .resizable()
+                .scaledToFit()
+        } else {
+            fallbackImage
+        }
+#endif
     }
 
     private var fallbackImage: some View {

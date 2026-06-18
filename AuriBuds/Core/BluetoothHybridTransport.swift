@@ -1,3 +1,4 @@
+#if os(macOS)
 import Foundation
 
 enum BluetoothConnectionMode: String, CaseIterable {
@@ -49,3 +50,4 @@ final class BluetoothHybridTransport {
         throw failures.last ?? BluetoothTransportError.deviceNotFound(preferredName)
     }
 }
+#endif

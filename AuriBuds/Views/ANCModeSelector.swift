@@ -141,6 +141,7 @@ struct ANCModeSelector: View {
     @ViewBuilder
     private func modeIcon(_ mode: ANCMode, imageName: String, isSelected: Bool) -> some View {
         let icon = Image(imageName)
+            .renderingMode(.template)
             .symbolRenderingMode(mode == .off ? .palette : .hierarchical)
             .imageScale(.small)
             .font(.system(size: size.iconSize, weight: .regular))

@@ -1,4 +1,8 @@
+#if os(macOS)
 import AppKit
+#elseif os(iOS)
+import UIKit
+#endif
 import Foundation
 
 struct DeviceImageSet {
@@ -266,9 +270,15 @@ final class DeviceImageProvider {
     }
 
     private func availableImageName(_ imageName: String?) -> String? {
+#if os(macOS)
         guard let imageName, NSImage(named: imageName) != nil else {
             return nil
         }
+#else
+        guard let imageName, UIImage(named: imageName) != nil else {
+            return nil
+        }
+#endif
 
         return imageName
     }

@@ -84,14 +84,18 @@ final class XiaomiProtocol {
 actor XiaomiProtocolBackend {
     private enum TransportConnection {
         case ble(XiaomiBLEConnection)
+#if os(macOS)
         case spp(SafeRfcommConnection)
+#endif
 
         var isOpen: Bool {
             switch self {
             case .ble(let connection):
                 return connection.isOpen
+#if os(macOS)
             case .spp(let connection):
                 return connection.isOpen
+#endif
             }
         }
 
@@ -99,8 +103,10 @@ actor XiaomiProtocolBackend {
             switch self {
             case .ble(let connection):
                 return connection.responseCount
+#if os(macOS)
             case .spp(let connection):
                 return connection.responseCount
+#endif
             }
         }
 
@@ -108,8 +114,10 @@ actor XiaomiProtocolBackend {
             switch self {
             case .ble(let connection):
                 try connection.write(bytes)
+#if os(macOS)
             case .spp(let connection):
                 try connection.write(bytes)
+#endif
             }
         }
 
@@ -117,8 +125,10 @@ actor XiaomiProtocolBackend {
             switch self {
             case .ble(let connection):
                 return connection.waitForResponses(since: baseline, timeout: timeout)
+#if os(macOS)
             case .spp(let connection):
                 return connection.waitForResponses(since: baseline, timeout: timeout)
+#endif
             }
         }
 
@@ -126,14 +136,18 @@ actor XiaomiProtocolBackend {
             switch self {
             case .ble:
                 break
+#if os(macOS)
             case .spp(let connection):
                 connection.close()
+#endif
             }
         }
     }
 
     private let bleTransport = XiaomiBLETransport()
+#if os(macOS)
     private let classicTransport = BluetoothClassicTransport(openTimeout: 4, closeTimeout: 1, retryDelay: 0.5, maxAttempts: 1)
+#endif
     private var connection: TransportConnection?
     private var activeDeviceName: String?
     private var latestBattery = BatteryState.unknown
@@ -231,6 +245,7 @@ actor XiaomiProtocolBackend {
             bleTransport.disconnect()
         }
 
+#if os(macOS)
         do {
             emit("xiaomi transport SPP fallback")
             let sppConnection = try classicTransport.connect(deviceName: deviceName) { [weak self] event in
@@ -243,6 +258,7 @@ actor XiaomiProtocolBackend {
             failures.append("SPP: \(error.localizedDescription)")
             emit("xiaomi SPP failed \(error.localizedDescription)")
         }
+#endif
 
         throw XiaomiProtocolError.allTransportsFailed(failures.joined(separator: "; "))
     }

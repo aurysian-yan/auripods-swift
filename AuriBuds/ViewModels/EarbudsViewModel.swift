@@ -1,4 +1,6 @@
+#if os(macOS)
 import AppKit
+#endif
 import Combine
 import Foundation
 
@@ -59,6 +61,7 @@ final class EarbudsViewModel: ObservableObject {
 
         configureEventHandler()
 
+#if os(macOS)
         terminationObserver = NotificationCenter.default.addObserver(
             forName: NSApplication.willTerminateNotification,
             object: nil,
@@ -70,6 +73,7 @@ final class EarbudsViewModel: ObservableObject {
                 await self.headphoneManager.disconnect()
             }
         }
+#endif
 
         subscribeToBluetoothMonitor()
         subscribeToStateChanges()
@@ -185,7 +189,9 @@ final class EarbudsViewModel: ObservableObject {
             lastRefreshDate = Date()
         } catch where client.isBatteryDecodeFailure(error) {
             state.battery = .unknown
+#if os(macOS)
             ConnectionPopupWindowController.shared.updateBatteryLevel(nil)
+#endif
             state.lastError = error.localizedDescription
             appendDebugEvent("error \(error.localizedDescription)")
         } catch {
@@ -320,11 +326,13 @@ final class EarbudsViewModel: ObservableObject {
         appendDebugEvent("system bluetooth connected \(snapshot.name)")
         if lastConnectionPopupDeviceAddress != snapshot.address {
             lastConnectionPopupDeviceAddress = snapshot.address
+#if os(macOS)
             ConnectionPopupWindowController.shared.showConnected(
                 deviceName: snapshot.name,
                 batteryLevel: nil,
                 imageName: DeviceImageProvider.shared.pairImageName(for: snapshot)
             )
+#endif
         }
 
         await connect(isAutomatic: true, snapshot: snapshot)
@@ -337,7 +345,9 @@ final class EarbudsViewModel: ObservableObject {
         if lastConnectionPopupDeviceAddress == snapshot.address {
             lastConnectionPopupDeviceAddress = nil
         }
+#if os(macOS)
         ConnectionPopupWindowController.shared.hide()
+#endif
         stopBackgroundTasks()
 
         let client = headphoneManager

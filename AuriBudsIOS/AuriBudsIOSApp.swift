@@ -1,17 +1,20 @@
-//
-//  AuriBudsIOSApp.swift
-//  AuriBudsIOS
-//
-//  Created by Aurysian on 2026/6/17.
-//
-
 import SwiftUI
 
 @main
 struct AuriBudsIOSApp: App {
+    @StateObject private var viewModel = EarbudsViewModel()
+
+    init() {
+        BluetoothMonitor.shared.start()
+    }
+
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .environmentObject(viewModel)
+                .onAppear {
+                    viewModel.start()
+                }
         }
     }
 }
