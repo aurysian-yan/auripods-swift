@@ -100,17 +100,31 @@ struct MainWindowView: View {
             HomePageView(viewModel: viewModel, transitionNamespace: deviceTransitionNamespace)
         case .device(let id):
 #if DEBUG
-            if let device = testDeviceStore.device(for: id) {
+            if let testDevice = testDeviceStore.device(for: id) {
                 HomePageView(
                     viewModel: viewModel,
-                    displayState: device.displayState,
+                    displayState: testDevice.displayState,
+                    transitionNamespace: deviceTransitionNamespace
+                )
+            } else if let device = devices.first(where: { $0.id == id }), device.id != currentDevice.id {
+                HomePageView(
+                    viewModel: viewModel,
+                    displayState: DeviceDisplayState(device: device),
                     transitionNamespace: deviceTransitionNamespace
                 )
             } else {
                 HomePageView(viewModel: viewModel, transitionNamespace: deviceTransitionNamespace)
             }
 #else
-            HomePageView(viewModel: viewModel, transitionNamespace: deviceTransitionNamespace)
+            if let device = devices.first(where: { $0.id == id }), device.id != currentDevice.id {
+                HomePageView(
+                    viewModel: viewModel,
+                    displayState: DeviceDisplayState(device: device),
+                    transitionNamespace: deviceTransitionNamespace
+                )
+            } else {
+                HomePageView(viewModel: viewModel, transitionNamespace: deviceTransitionNamespace)
+            }
 #endif
         case .logs:
             LogsPageView(viewModel: viewModel)
@@ -136,7 +150,9 @@ struct MainWindowView: View {
                 return
             }
 #endif
-            currentPage = .device(currentDevice.id)
+            if !devices.contains(where: { $0.id == id }) {
+                currentPage = .device(currentDevice.id)
+            }
         }
     }
 }

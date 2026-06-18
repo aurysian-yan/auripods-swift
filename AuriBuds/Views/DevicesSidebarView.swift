@@ -2,6 +2,22 @@ import SwiftUI
 
 enum AuriBudsPreferenceKey {
     static let showsUnavailableDevices = "showsUnavailableDevices"
+    static let statusBarDevicePriority = "statusBarDevicePriority"
+}
+
+struct StatusBarPriority {
+    static func load() -> [String] {
+        guard let data = UserDefaults.standard.data(forKey: AuriBudsPreferenceKey.statusBarDevicePriority),
+              let addresses = try? JSONDecoder().decode([String].self, from: data) else {
+            return []
+        }
+        return addresses
+    }
+
+    static func save(_ addresses: [String]) {
+        guard let data = try? JSONEncoder().encode(addresses) else { return }
+        UserDefaults.standard.set(data, forKey: AuriBudsPreferenceKey.statusBarDevicePriority)
+    }
 }
 
 struct DevicesSidebarView: View {

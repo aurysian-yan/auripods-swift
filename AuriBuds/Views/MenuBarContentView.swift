@@ -35,6 +35,26 @@ struct MenuBarContentView: View {
     private var visibleLastError: String? {
         viewModel.state.connectionStatus == .deviceNotFound ? nil : viewModel.state.lastError
     }
+
+    private var priorityList: [String] {
+        StatusBarPriority.load()
+    }
+
+    private var preferredDevice: PairedDevice? {
+        guard !priorityList.isEmpty else { return nil }
+        for address in priorityList {
+            if let device = viewModel.pairedDevices.first(where: { $0.modelIdentifier == address }) {
+                return device
+            }
+        }
+        return nil
+    }
+
+    private var shouldSuggestSwitch: Bool {
+        guard let preferred = preferredDevice else { return false }
+        let currentId = PairedDevice(state: viewModel.state).id
+        return preferred.id != currentId
+    }
     
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -127,6 +147,19 @@ struct MenuBarContentView: View {
             }
             .buttonStyle(.borderless)
             .controlSize(.small)
+
+            if shouldSuggestSwitch, let preferred = preferredDevice {
+                Button {
+                    Task {
+                        await viewModel.connect(device: preferred)
+                    }
+                } label: {
+                    Label("切换到 \(preferred.displayName)", systemImage: "arrow.triangle.swap")
+                        .font(.caption)
+                }
+                .buttonStyle(.borderless)
+                .controlSize(.small)
+            }
 
             if let lastError = visibleLastError {
                 Text(lastError)

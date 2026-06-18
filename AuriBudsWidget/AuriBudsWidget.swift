@@ -124,7 +124,7 @@ struct AuriBudsWidgetEntryView: View {
                 }
 
                 Text(entry.data.deviceName)
-                    .font(.system(size: 40, weight: .medium))
+                    .font(.system(size: 24, weight: .medium))
                     .fontWidth(.condensed)
                     .lineLimit(2)
                     .contentTransition(.interpolate)
@@ -182,10 +182,7 @@ struct AuriBudsWidgetEntryView: View {
                         .contentTransition(.numericText())
                 }
             }
-
-            deviceImageView
-                .frame(maxWidth: .infinity, alignment: .center)
-
+            
             ancButtons
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)

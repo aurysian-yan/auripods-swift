@@ -129,6 +129,19 @@ struct DeviceDisplayState: Equatable {
         fallbackSystemName = state.currentDevice?.fallbackSystemName ?? "headphones"
         ancModeTitle = state.ancMode.localizedTitle
     }
+
+    init(device: PairedDevice) {
+        deviceName = device.displayName
+        connectionStatus = device.connectionStatusOverride
+            ?? (device.isSystemConnected ? .connected : .disconnected)
+        leftBatteryText = "--"
+        rightBatteryText = "--"
+        caseBatteryText = "--"
+        isCaseCharging = false
+        imageName = device.selectedImageName ?? device.defaultImageName
+        fallbackSystemName = device.fallbackSystemName
+        ancModeTitle = "未知"
+    }
 }
 
 struct DeviceOverviewContent: View {

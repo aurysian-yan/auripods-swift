@@ -6,6 +6,7 @@ struct SettingsPageView: View {
     @ObservedObject var testDeviceStore: DebugTestDeviceStore
 #endif
     @AppStorage(AuriBudsPreferenceKey.showsUnavailableDevices) private var showsUnavailableDevices = true
+    @State private var priorityList: [String] = StatusBarPriority.load()
 
     private var devices: [PairedDevice] {
 #if DEBUG
@@ -24,6 +25,12 @@ struct SettingsPageView: View {
             }
             Section("侧边栏") {
                 Toggle("显示不可连接设备", isOn: $showsUnavailableDevices)
+            }
+            Section("状态栏浮窗") {
+                StatusBarPriorityView(
+                    devices: devices,
+                    priorityList: $priorityList
+                )
             }
 #if DEBUG
             Section("样例设备") {
@@ -236,6 +243,150 @@ private extension Bundle {
             }
         }
         return nil
+    }
+}
+
+private struct StatusBarPriorityView: View {
+    let devices: [PairedDevice]
+    @Binding var priorityList: [String]
+
+    @State private var selectedToAdd: String = ""
+
+    private var addableDevices: [PairedDevice] {
+        devices.filter { device in
+            !priorityList.contains(device.modelIdentifier)
+        }
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            if !priorityList.isEmpty {
+                VStack(spacing: 6) {
+                    ForEach(Array(priorityList.enumerated()), id: \.offset) { index, address in
+                        HStack(spacing: 8) {
+                            if let device = devices.first(where: { $0.modelIdentifier == address }) {
+                                DeviceImageView(
+                                    imageName: device.selectedImageName ?? device.defaultImageName,
+                                    fallbackSystemName: device.fallbackSystemName,
+                                    size: CGSize(width: 24, height: 24)
+                                )
+
+                                Text(device.displayName)
+                                    .font(.callout)
+                                    .lineLimit(1)
+                            } else {
+                                Image(systemName: "questionmark.circle")
+                                    .frame(width: 24, height: 24)
+
+                                Text(address)
+                                    .font(.callout)
+                                    .lineLimit(1)
+                                    .foregroundStyle(.secondary)
+                            }
+
+                            Spacer()
+
+                            Button {
+                                moveUp(index)
+                            } label: {
+                                Image(systemName: "chevron.up")
+                                    .font(.caption.weight(.semibold))
+                            }
+                            .buttonStyle(.borderless)
+                            .disabled(index == 0)
+
+                            Button {
+                                moveDown(index)
+                            } label: {
+                                Image(systemName: "chevron.down")
+                                    .font(.caption.weight(.semibold))
+                            }
+                            .buttonStyle(.borderless)
+                            .disabled(index == priorityList.count - 1)
+
+                            Button {
+                                remove(index)
+                            } label: {
+                                Image(systemName: "xmark.circle.fill")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            .buttonStyle(.borderless)
+                        }
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+
+                        if index < priorityList.count - 1 {
+                            Divider()
+                        }
+                    }
+                }
+                .padding(.vertical, 4)
+            } else {
+                Text("未设置优先级")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .padding(.vertical, 8)
+            }
+
+            if !addableDevices.isEmpty {
+                Divider()
+                    .padding(.vertical, 4)
+
+                HStack(spacing: 8) {
+                    Picker("添加设备", selection: $selectedToAdd) {
+                        Text("选择设备…").tag("")
+                        ForEach(addableDevices) { device in
+                            Text(device.displayName)
+                                .tag(device.modelIdentifier)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    .labelsHidden()
+
+                    Button("添加") {
+                        add()
+                    }
+                    .disabled(selectedToAdd.isEmpty)
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+
+                    Spacer()
+                }
+                .padding(.horizontal, 8)
+            }
+        }
+        .onChange(of: priorityList) { _, newValue in
+            StatusBarPriority.save(newValue)
+        }
+    }
+
+    private func moveUp(_ index: Int) {
+        guard index > 0 else { return }
+        var list = priorityList
+        list.swapAt(index, index - 1)
+        priorityList = list
+    }
+
+    private func moveDown(_ index: Int) {
+        guard index < priorityList.count - 1 else { return }
+        var list = priorityList
+        list.swapAt(index, index + 1)
+        priorityList = list
+    }
+
+    private func remove(_ index: Int) {
+        var list = priorityList
+        list.remove(at: index)
+        priorityList = list
+    }
+
+    private func add() {
+        guard !selectedToAdd.isEmpty else { return }
+        var list = priorityList
+        list.append(selectedToAdd)
+        priorityList = list
+        selectedToAdd = ""
     }
 }
 
