@@ -52,20 +52,30 @@ struct ContentView: View {
             }
             .navigationTitle("设备")
         } detail: {
-            pageContent(for: selection ?? .device(currentDevice.id))
+            pageContent(for: selection ?? defaultPage)
                 .navigationTitle("")
                 .navigationBarTitleDisplayMode(.inline)
         }
         .onAppear {
             if selection == nil {
-                selection = .device(currentDevice.id)
+                selection = defaultPage
             }
         }
         .onChange(of: currentDevice.id) { _, id in
-            if selection == nil || selection == .home {
-                selection = .device(id)
+            if hasLiveDevice {
+                if selection == nil || selection == .home {
+                    selection = .device(id)
+                }
             }
         }
+    }
+
+    private var hasLiveDevice: Bool {
+        viewModel.state.currentDevice != nil || !viewModel.state.availableDevices.isEmpty
+    }
+
+    private var defaultPage: MainWindowPage {
+        hasLiveDevice ? .device(currentDevice.id) : .home
     }
 
     private var currentDevice: PairedDevice {

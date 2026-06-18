@@ -33,7 +33,7 @@ enum ConnectionStatus: String, Equatable {
 }
 
 struct EarbudsState: Equatable {
-    var deviceName = "OPPO Enco Air4 Pro"
+    var deviceName = "未连接"
     var deviceAddress: String?
     var currentDevice: BluetoothDeviceSnapshot?
     var availableDevices: [BluetoothDeviceSnapshot] = []
