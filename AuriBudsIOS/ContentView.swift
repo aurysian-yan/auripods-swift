@@ -72,10 +72,22 @@ struct ContentView: View {
     private var iPhoneLayout: some View {
         TabView {
             NavigationStack {
-                homePageContent
-                    .navigationTitle("AuriBuds")
-                    .navigationBarTitleDisplayMode(.inline)
-                    .toolbar {
+                Group {
+                    if let id = selectedDeviceID, let device = devices.first(where: { $0.id == id }) {
+                        HomePageView(
+                            viewModel: viewModel,
+                            displayState: DeviceDisplayState(device: device),
+                            transitionNamespace: deviceTransitionNamespace
+                        )
+                        .navigationTitle("AuriBuds")
+                    } else {
+                        allDevicesPage
+                            .onAppear { selectedDeviceID = nil }
+                    }
+                }
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    if selectedDeviceID != nil {
                         ToolbarItem(placement: .topBarTrailing) {
                             Button {
                                 showDeviceList = true
@@ -84,6 +96,7 @@ struct ContentView: View {
                             }
                         }
                     }
+                }
             }
             .tabItem {
                 Label("主页", systemImage: "house.fill")
@@ -118,27 +131,7 @@ struct ContentView: View {
     private var deviceListSheet: some View {
         NavigationStack {
             Form {
-                Section("已配对的设备") {
-                    ForEach(devices) { device in
-                        Button {
-                            selectedDeviceID = device.id
-                            showDeviceList = false
-                        } label: {
-                            IOSDeviceRow(
-                                device: device,
-                                connectionStatus: connectionStatus(for: device)
-                            )
-                        }
-                    }
-                }
-
-                Section {
-                    NavigationLink {
-                        FindDeviceView(viewModel: viewModel)
-                    } label: {
-                        Label("查找设备", systemImage: "magnifyingglass")
-                    }
-                }
+                deviceListRows(dismissSheet: true)
             }
             .navigationTitle("设备")
             .navigationBarTitleDisplayMode(.inline)
@@ -150,18 +143,67 @@ struct ContentView: View {
     // MARK: - Shared
 
     @ViewBuilder
-    private var homePageContent: some View {
-        if let id = selectedDeviceID, let device = devices.first(where: { $0.id == id }) {
-            HomePageView(
-                viewModel: viewModel,
-                displayState: DeviceDisplayState(device: device),
-                transitionNamespace: deviceTransitionNamespace
-            )
-        } else {
-            HomePageView(
-                viewModel: viewModel,
-                transitionNamespace: deviceTransitionNamespace
-            )
+    private var allDevicesPage: some View {
+        Form {
+            if hasLiveDevice {
+                deviceListRows(dismissSheet: false)
+            } else {
+                Section {
+                    VStack(spacing: 16) {
+                        Image(systemName: "headphones")
+                            .font(.system(size: 40))
+                            .foregroundStyle(.secondary)
+
+                        Text("未发现设备")
+                            .font(.headline)
+
+                        Text("将耳机置于配对模式，然后搜索附近的设备")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
+
+                        NavigationLink {
+                            FindDeviceView(viewModel: viewModel)
+                        } label: {
+                            Text("搜索设备")
+                                .font(.headline)
+                        }
+                        .buttonStyle(.borderedProminent)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 24)
+                }
+            }
+        }
+        .navigationTitle("设备")
+    }
+
+    @ViewBuilder
+    private func deviceListRows(dismissSheet: Bool) -> some View {
+        Group {
+            Section("已配对的设备") {
+                ForEach(devices) { device in
+                    Button {
+                        selectedDeviceID = device.id
+                        if dismissSheet {
+                            showDeviceList = false
+                        }
+                    } label: {
+                        IOSDeviceRow(
+                            device: device,
+                            connectionStatus: connectionStatus(for: device)
+                        )
+                    }
+                }
+            }
+
+            Section {
+                NavigationLink {
+                    FindDeviceView(viewModel: viewModel)
+                } label: {
+                    Label("查找设备", systemImage: "magnifyingglass")
+                }
+            }
         }
     }
 
